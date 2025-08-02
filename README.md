@@ -3,7 +3,7 @@
 40Hzの光と音の刺激を組み合わせたn-back課題トレーニングアプリです。
 
 ## デモ
-[ここをクリックしてアプリを試す](https://hokutomiyazaki-arch.github.io/n-back-40hz-gamma-wave/)
+[ここをクリックしてアプリを試す](https://hokutomiyazaki-arch.github.io/n-back-40hz-gamma-wave)
 
 ## 機能
 - 1-back、2-back、3-backレベル選択
