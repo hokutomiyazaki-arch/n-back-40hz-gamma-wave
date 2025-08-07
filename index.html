@@ -241,9 +241,9 @@
             <div class="setting-group">
                 <label>n-back レベル</label>
                 <select id="nLevel">
-                    <option value="1">1-back</option>
                     <option value="2" selected>2-back</option>
                     <option value="3">3-back</option>
+                    <option value="4">4-back</option>
                 </select>
             </div>
             
@@ -424,54 +424,6 @@
             }
         }
 
-        function updateBGMVolume() {
-            if (bgmOscillators.length > 0) {
-                const volume = elements.bgmVolumeSlider.value / 100;
-                bgmOscillators.forEach(({ gainNode }) => {
-                    if (gainNode) {
-                        gainNode.gain.setValueAtTime(volume * 0.2, audioContext.currentTime);
-                    }
-                });
-            }
-        }
-
-        function startBGM() {
-            if (!audioContext) return;
-            
-            try {
-                const frequencies = [130.81, 164.81, 196.00]; // C major chord
-                const bgmVolume = elements.bgmVolumeSlider.value / 100;
-                
-                bgmOscillators = frequencies.map(freq => {
-                    const osc = audioContext.createOscillator();
-                    const gain = audioContext.createGain();
-                    
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(freq, audioContext.currentTime);
-                    gain.gain.setValueAtTime(bgmVolume * 0.2, audioContext.currentTime);
-                    
-                    osc.connect(gain);
-                    gain.connect(audioContext.destination);
-                    osc.start();
-                    
-                    return { osc, gainNode: gain };
-                });
-            } catch (error) {
-                console.error('Error starting BGM:', error);
-            }
-        }
-
-        function stopBGM() {
-            bgmOscillators.forEach(({ osc, gainNode }) => {
-                try {
-                    osc.stop();
-                    osc.disconnect();
-                    gainNode.disconnect();
-                } catch (e) {}
-            });
-            bgmOscillators = [];
-        }
-
         // Game Functions
         function generateSequence() {
             sequence = [];
@@ -542,9 +494,6 @@
                 gainNode.connect(audioContext.destination);
                 oscillator.start();
                 
-                // Start BGM
-                startBGM();
-                
                 // Start light flashing
                 startLightFlashing();
                 
@@ -577,20 +526,28 @@
         function stop() {
             if (!isPlaying) return;
             
+            // Update state immediately
+            isPlaying = false;
+            
             // Stop audio
             if (oscillator) {
-                oscillator.stop();
-                oscillator.disconnect();
+                try {
+                    oscillator.stop();
+                    oscillator.disconnect();
+                } catch (e) {
+                    console.error('Error stopping oscillator:', e);
+                }
                 oscillator = null;
             }
             
             if (gainNode) {
-                gainNode.disconnect();
+                try {
+                    gainNode.disconnect();
+                } catch (e) {
+                    console.error('Error disconnecting gain:', e);
+                }
                 gainNode = null;
             }
-            
-            // Stop BGM
-            stopBGM();
             
             // Stop light
             stopLightFlashing();
@@ -602,7 +559,6 @@
             }
             
             // Update UI
-            isPlaying = false;
             elements.startBtn.disabled = false;
             elements.stopBtn.disabled = true;
             elements.matchBtn.disabled = true;
@@ -628,7 +584,8 @@
         }
 
         function showNextStimulus() {
-            if (currentIndex >= totalCount || !isPlaying) {
+            // Check if should stop
+            if (!isPlaying || currentIndex >= totalCount) {
                 stop();
                 return;
             }
@@ -672,7 +629,10 @@
             // Schedule next
             currentIndex++;
             const speed = parseFloat(elements.speedSlider.value) * 1000;
-            gameInterval = setTimeout(showNextStimulus, speed);
+            
+            if (isPlaying) {
+                gameInterval = setTimeout(showNextStimulus, speed);
+            }
         }
 
         function handleMatchResponse() {
