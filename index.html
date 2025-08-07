@@ -6,10 +6,6 @@
     <title>40Hz n-back認知トレーニング</title>
     <meta name="description" content="40Hzの光と音の刺激を使用したn-back認知トレーニングアプリ">
     <meta name="author" content="Your Name">
-    <!-- 
-    40Hz n-back Cognitive Training App
-    License: MIT
-    -->
     <style>
         * {
             margin: 0;
@@ -22,16 +18,13 @@
             background-color: #0a0a0a;
             color: #ffffff;
             min-height: 100vh;
-            overflow-x: hidden;
-            padding: 20px 0;
+            padding: 20px;
         }
 
         .container {
-            text-align: center;
             max-width: 800px;
-            width: 90%;
-            padding: 20px;
             margin: 0 auto;
+            text-align: center;
         }
 
         h1 {
@@ -43,11 +36,19 @@
             background-clip: text;
         }
 
+        .warning {
+            background: #e74c3c;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
         .game-area {
             position: relative;
             width: 400px;
             height: 400px;
-            margin: 0 auto 30px;
+            margin: 20px auto;
             background: rgba(255, 255, 255, 0.02);
             border-radius: 20px;
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -75,7 +76,7 @@
                         0 0 300px rgba(102, 126, 234, 0.4);
         }
 
-        .number-display {
+        .stimulus-display {
             font-size: 6rem;
             font-weight: bold;
             color: white;
@@ -85,16 +86,28 @@
             transition: all 0.3s ease;
         }
 
-        .number-display.fixed {
+        .stimulus-display.fixed {
             top: 50%;
             left: 50%;
         }
 
+        .stimulus-display.zodiac {
+            width: 120px;
+            height: 120px;
+            font-size: 1rem;
+        }
+
+        .zodiac-icon {
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.8));
+        }
+
         .settings {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
         }
 
         .setting-group {
@@ -140,9 +153,8 @@
             display: flex;
             gap: 20px;
             justify-content: center;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             flex-wrap: wrap;
-            min-height: 60px;
         }
 
         button {
@@ -155,7 +167,6 @@
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 1px;
-            display: inline-block;
         }
 
         .start-btn {
@@ -265,7 +276,7 @@
                 height: 250px;
             }
             
-            .number-display {
+            .stimulus-display {
                 font-size: 4rem;
             }
         }
@@ -275,7 +286,7 @@
     <div class="container">
         <h1>40Hz n-back認知トレーニング</h1>
         
-        <div style="background: #e74c3c; color: white; padding: 10px; border-radius: 5px; margin: 10px 0;">
+        <div class="warning">
             ⚠️ 警告: 光過敏症の方、てんかんの既往歴がある方は使用を避けてください。
         </div>
         
@@ -290,6 +301,14 @@
             </div>
             
             <div class="setting-group">
+                <label for="stimulusType">刺激の種類</label>
+                <select id="stimulusType">
+                    <option value="numbers">数字 (1-9)</option>
+                    <option value="zodiac">干支 (12種)</option>
+                </select>
+            </div>
+            
+            <div class="setting-group">
                 <label for="speed">表示速度: <span id="speedValue">2.0</span>秒</label>
                 <input type="range" id="speed" min="1" max="4" step="0.5" value="2">
             </div>
@@ -300,7 +319,7 @@
             </div>
             
             <div class="setting-group">
-                <label for="position">数字の位置</label>
+                <label for="position">表示位置</label>
                 <select id="position">
                     <option value="fixed">中央固定</option>
                     <option value="random">ランダム</option>
@@ -310,7 +329,7 @@
         
         <div class="game-area">
             <div class="light-display" id="lightDisplay"></div>
-            <div class="number-display fixed" id="numberDisplay"></div>
+            <div class="stimulus-display fixed" id="stimulusDisplay"></div>
         </div>
         
         <div class="controls">
@@ -346,6 +365,10 @@
                 this.lightInterval = null;
                 this.gameInterval = null;
                 
+                // Sound oscillators for feedback
+                this.correctSoundOsc = null;
+                this.incorrectSoundOsc = null;
+                
                 // Game state
                 this.isPlaying = false;
                 this.sequence = [];
@@ -358,10 +381,27 @@
                 this.missedMatches = 0;
                 this.currentIsMatch = false;
                 this.responseGiven = false;
+                this.stimulusType = 'numbers';
+                
+                // Zodiac animals data
+                this.zodiacAnimals = [
+                    { name: '子(ネズミ)', svg: this.createMouseSVG() },
+                    { name: '丑(ウシ)', svg: this.createOxSVG() },
+                    { name: '寅(トラ)', svg: this.createTigerSVG() },
+                    { name: '卯(ウサギ)', svg: this.createRabbitSVG() },
+                    { name: '辰(リュウ)', svg: this.createDragonSVG() },
+                    { name: '巳(ヘビ)', svg: this.createSnakeSVG() },
+                    { name: '午(ウマ)', svg: this.createHorseSVG() },
+                    { name: '未(ヒツジ)', svg: this.createSheepSVG() },
+                    { name: '申(サル)', svg: this.createMonkeySVG() },
+                    { name: '酉(トリ)', svg: this.createRoosterSVG() },
+                    { name: '戌(イヌ)', svg: this.createDogSVG() },
+                    { name: '亥(イノシシ)', svg: this.createBoarSVG() }
+                ];
                 
                 // DOM elements
                 this.lightDisplay = document.getElementById('lightDisplay');
-                this.numberDisplay = document.getElementById('numberDisplay');
+                this.stimulusDisplay = document.getElementById('stimulusDisplay');
                 this.startBtn = document.getElementById('startBtn');
                 this.stopBtn = document.getElementById('stopBtn');
                 this.matchBtn = document.getElementById('matchBtn');
@@ -371,12 +411,171 @@
                 this.volumeSlider = document.getElementById('volume');
                 this.volumeValue = document.getElementById('volumeValue');
                 this.positionSelect = document.getElementById('position');
+                this.stimulusTypeSelect = document.getElementById('stimulusType');
                 this.progressEl = document.getElementById('progress');
                 this.scoreEl = document.getElementById('score');
                 this.accuracyEl = document.getElementById('accuracy');
                 this.feedbackEl = document.getElementById('feedback');
                 
                 this.initializeEventListeners();
+            }
+            
+            // SVG creation methods for zodiac animals
+            createMouseSVG() {
+                return `<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="50" cy="55" r="20" fill="#888"/>
+                    <circle cx="35" cy="35" r="8" fill="#888"/>
+                    <circle cx="65" cy="35" r="8" fill="#888"/>
+                    <ellipse cx="50" cy="75" rx="15" ry="10" fill="#888"/>
+                    <circle cx="42" cy="50" r="3" fill="#fff"/>
+                    <circle cx="58" cy="50" r="3" fill="#fff"/>
+                    <path d="M 50 55 Q 50 60 45 58" stroke="#fff" fill="none" stroke-width="2"/>
+                    <path d="M 20 60 Q 10 65 5 55" stroke="#888" fill="none" stroke-width="3"/>
+                </svg>`;
+            }
+            
+            createOxSVG() {
+                return `<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <ellipse cx="50" cy="60" rx="25" ry="20" fill="#8B4513"/>
+                    <path d="M 30 45 Q 20 30 25 35" stroke="#8B4513" fill="none" stroke-width="4"/>
+                    <path d="M 70 45 Q 80 30 75 35" stroke="#8B4513" fill="none" stroke-width="4"/>
+                    <circle cx="40" cy="55" r="3" fill="#000"/>
+                    <circle cx="60" cy="55" r="3" fill="#000"/>
+                    <ellipse cx="50" cy="65" rx="8" ry="5" fill="#FFB6C1"/>
+                    <circle cx="45" cy="65" r="2" fill="#000"/>
+                    <circle cx="55" cy="65" r="2" fill="#000"/>
+                </svg>`;
+            }
+            
+            createTigerSVG() {
+                return `<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="50" cy="50" r="25" fill="#FF8C00"/>
+                    <path d="M 30 35 L 35 25 L 40 35" fill="#FF8C00"/>
+                    <path d="M 60 35 L 65 25 L 70 35" fill="#FF8C00"/>
+                    <circle cx="40" cy="45" r="3" fill="#000"/>
+                    <circle cx="60" cy="45" r="3" fill="#000"/>
+                    <path d="M 50 55 L 45 60 L 55 60 Z" fill="#000"/>
+                    <path d="M 25 40 L 30 38" stroke="#000" stroke-width="2"/>
+                    <path d="M 25 45 L 30 45" stroke="#000" stroke-width="2"/>
+                    <path d="M 25 50 L 30 52" stroke="#000" stroke-width="2"/>
+                    <path d="M 75 40 L 70 38" stroke="#000" stroke-width="2"/>
+                    <path d="M 75 45 L 70 45" stroke="#000" stroke-width="2"/>
+                    <path d="M 75 50 L 70 52" stroke="#000" stroke-width="2"/>
+                </svg>`;
+            }
+            
+            createRabbitSVG() {
+                return `<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <ellipse cx="50" cy="60" rx="20" ry="18" fill="#FFF"/>
+                    <ellipse cx="40" cy="30" rx="8" ry="20" fill="#FFF"/>
+                    <ellipse cx="60" cy="30" rx="8" ry="20" fill="#FFF"/>
+                    <circle cx="42" cy="55" r="3" fill="#FF1493"/>
+                    <circle cx="58" cy="55" r="3" fill="#FF1493"/>
+                    <circle cx="50" cy="63" r="2" fill="#FF1493"/>
+                    <path d="M 45 65 Q 50 68 55 65" stroke="#FF1493" fill="none" stroke-width="1.5"/>
+                </svg>`;
+            }
+            
+            createDragonSVG() {
+                return `<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M 30 50 Q 50 30 70 50 Q 60 70 40 70 Q 20 70 30 50" fill="#228B22"/>
+                    <path d="M 35 40 L 30 35 L 33 40" fill="#228B22"/>
+                    <path d="M 65 40 L 70 35 L 67 40" fill="#228B22"/>
+                    <circle cx="40" cy="50" r="3" fill="#FFD700"/>
+                    <circle cx="60" cy="50" r="3" fill="#FFD700"/>
+                    <path d="M 45 60 Q 50 65 55 60" stroke="#FFD700" fill="none" stroke-width="2"/>
+                    <path d="M 15 60 Q 25 55 30 60" stroke="#228B22" fill="none" stroke-width="3"/>
+                </svg>`;
+            }
+            
+            createSnakeSVG() {
+                return `<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M 30 30 Q 70 30 70 50 Q 70 70 30 70 Q 30 50 50 50 Q 70 50 70 30" 
+                          stroke="#006400" fill="none" stroke-width="8" stroke-linecap="round"/>
+                    <circle cx="70" cy="30" r="8" fill="#006400"/>
+                    <circle cx="67" cy="28" r="2" fill="#FFD700"/>
+                    <circle cx="73" cy="28" r="2" fill="#FFD700"/>
+                    <path d="M 70 25 L 68 20 M 70 25 L 72 20" stroke="#FF0000" stroke-width="2"/>
+                </svg>`;
+            }
+            
+            createHorseSVG() {
+                return `<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <ellipse cx="50" cy="55" rx="20" ry="25" fill="#8B4513"/>
+                    <path d="M 45 35 Q 50 20 55 35" stroke="#8B4513" fill="#8B4513" stroke-width="5"/>
+                    <rect x="40" y="20" width="5" height="15" fill="#000"/>
+                    <rect x="55" y="20" width="5" height="15" fill="#000"/>
+                    <circle cx="42" cy="45" r="3" fill="#000"/>
+                    <circle cx="58" cy="45" r="3" fill="#000"/>
+                    <ellipse cx="50" cy="60" rx="10" ry="7" fill="#654321"/>
+                    <circle cx="46" cy="60" r="2" fill="#000"/>
+                    <circle cx="54" cy="60" r="2" fill="#000"/>
+                </svg>`;
+            }
+            
+            createSheepSVG() {
+                return `<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="35" cy="45" r="8" fill="#FFF" opacity="0.9"/>
+                    <circle cx="45" cy="40" r="8" fill="#FFF" opacity="0.9"/>
+                    <circle cx="55" cy="40" r="8" fill="#FFF" opacity="0.9"/>
+                    <circle cx="65" cy="45" r="8" fill="#FFF" opacity="0.9"/>
+                    <circle cx="40" cy="55" r="8" fill="#FFF" opacity="0.9"/>
+                    <circle cx="60" cy="55" r="8" fill="#FFF" opacity="0.9"/>
+                    <circle cx="50" cy="60" r="8" fill="#FFF" opacity="0.9"/>
+                    <ellipse cx="50" cy="55" rx="15" ry="12" fill="#FFB6C1"/>
+                    <circle cx="45" cy="52" r="2" fill="#000"/>
+                    <circle cx="55" cy="52" r="2" fill="#000"/>
+                    <path d="M 45 58 Q 50 60 55 58" stroke="#000" fill="none" stroke-width="1.5"/>
+                </svg>`;
+            }
+            
+            createMonkeySVG() {
+                return `<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="50" cy="50" r="20" fill="#8B4513"/>
+                    <circle cx="35" cy="45" r="10" fill="#D2691E"/>
+                    <circle cx="65" cy="45" r="10" fill="#D2691E"/>
+                    <circle cx="40" cy="45" r="3" fill="#000"/>
+                    <circle cx="60" cy="45" r="3" fill="#000"/>
+                    <ellipse cx="50" cy="60" rx="12" ry="8" fill="#D2691E"/>
+                    <path d="M 45 55 Q 50 58 55 55" stroke="#000" fill="none" stroke-width="2"/>
+                </svg>`;
+            }
+            
+            createRoosterSVG() {
+                return `<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <ellipse cx="50" cy="55" rx="20" ry="25" fill="#DC143C"/>
+                    <path d="M 50 30 L 45 20 L 50 25 L 55 20 Z" fill="#DC143C"/>
+                    <path d="M 40 65 L 35 75 M 50 68 L 50 78 M 60 65 L 65 75" stroke="#FFD700" stroke-width="3"/>
+                    <circle cx="42" cy="45" r="3" fill="#000"/>
+                    <circle cx="58" cy="45" r="3" fill="#000"/>
+                    <path d="M 45 50 L 50 55 L 55 50" stroke="#FFD700" fill="none" stroke-width="3"/>
+                    <ellipse cx="50" cy="60" rx="8" ry="5" fill="#FFD700"/>
+                </svg>`;
+            }
+            
+            createDogSVG() {
+                return `<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <ellipse cx="50" cy="55" rx="20" ry="18" fill="#8B4513"/>
+                    <path d="M 30 40 Q 25 30 35 35" fill="#8B4513"/>
+                    <path d="M 70 40 Q 75 30 65 35" fill="#8B4513"/>
+                    <circle cx="42" cy="50" r="3" fill="#000"/>
+                    <circle cx="58" cy="50" r="3" fill="#000"/>
+                    <ellipse cx="50" cy="62" rx="6" ry="4" fill="#000"/>
+                    <path d="M 45 65 Q 50 68 55 65" stroke="#FF1493" fill="none" stroke-width="2"/>
+                    <path d="M 20 70 Q 30 65 25 75" stroke="#8B4513" fill="none" stroke-width="4"/>
+                </svg>`;
+            }
+            
+            createBoarSVG() {
+                return `<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <ellipse cx="50" cy="55" rx="25" ry="20" fill="#654321"/>
+                    <ellipse cx="50" cy="60" rx="12" ry="8" fill="#FFB6C1"/>
+                    <circle cx="45" cy="60" r="3" fill="#000"/>
+                    <circle cx="55" cy="60" r="3" fill="#000"/>
+                    <circle cx="40" cy="48" r="3" fill="#000"/>
+                    <circle cx="60" cy="48" r="3" fill="#000"/>
+                    <path d="M 35 65 L 30 70 M 65 65 L 70 70" stroke="#FFF" stroke-width="3"/>
+                </svg>`;
             }
             
             initializeEventListeners() {
@@ -400,6 +599,10 @@
                     }
                 });
                 
+                this.stimulusTypeSelect.addEventListener('change', (e) => {
+                    this.stimulusType = e.target.value;
+                });
+                
                 // Keyboard support
                 document.addEventListener('keydown', (e) => {
                     if (e.code === 'Space' && this.isPlaying && !this.matchBtn.disabled) {
@@ -410,9 +613,10 @@
             }
             
             generateSequence() {
-                // Generate 100 numbers with exactly 20 matches
+                // Generate 100 items with exactly 20 matches
                 this.sequence = [];
                 const matchPositions = new Set();
+                const maxValue = this.stimulusType === 'numbers' ? 9 : 12;
                 
                 // Randomly select 20 positions for matches (must be >= nLevel)
                 while (matchPositions.size < 20) {
@@ -426,12 +630,12 @@
                         // This should be a match
                         this.sequence.push(this.sequence[i - this.nLevel]);
                     } else {
-                        // Generate random number that doesn't create unintended match
-                        let num;
+                        // Generate random item that doesn't create unintended match
+                        let item;
                         do {
-                            num = Math.floor(Math.random() * 9) + 1;
-                        } while (i >= this.nLevel && num === this.sequence[i - this.nLevel]);
-                        this.sequence.push(num);
+                            item = Math.floor(Math.random() * maxValue) + 1;
+                        } while (i >= this.nLevel && item === this.sequence[i - this.nLevel]);
+                        this.sequence.push(item);
                     }
                 }
                 
@@ -480,9 +684,10 @@
                     this.nLevelSelect.disabled = true;
                     this.speedSlider.disabled = true;
                     this.positionSelect.disabled = true;
+                    this.stimulusTypeSelect.disabled = true;
                     
-                    // Start showing numbers
-                    this.showNextNumber();
+                    // Start showing stimuli
+                    this.showNextStimulus();
                     
                 } catch (error) {
                     console.error('Error starting:', error);
@@ -522,7 +727,8 @@
                 this.nLevelSelect.disabled = false;
                 this.speedSlider.disabled = false;
                 this.positionSelect.disabled = false;
-                this.numberDisplay.textContent = '';
+                this.stimulusTypeSelect.disabled = false;
+                this.stimulusDisplay.innerHTML = '';
                 
                 // Show final results
                 if (this.currentIndex > 0) {
@@ -540,7 +746,7 @@
                 this.updateStats();
             }
             
-            showNextNumber() {
+            showNextStimulus() {
                 if (this.currentIndex >= 100 || !this.isPlaying) {
                     this.stop();
                     return;
@@ -551,22 +757,30 @@
                     this.missedMatches++;
                 }
                 
-                // Display current number
-                const currentNumber = this.sequence[this.currentIndex];
-                this.numberDisplay.textContent = currentNumber;
+                // Display current stimulus
+                const currentItem = this.sequence[this.currentIndex];
                 
-                // Position number
+                if (this.stimulusType === 'numbers') {
+                    this.stimulusDisplay.innerHTML = currentItem;
+                    this.stimulusDisplay.classList.remove('zodiac');
+                } else {
+                    const zodiacIndex = currentItem - 1;
+                    this.stimulusDisplay.innerHTML = this.zodiacAnimals[zodiacIndex].svg;
+                    this.stimulusDisplay.classList.add('zodiac');
+                }
+                
+                // Position stimulus
                 if (this.positionSelect.value === 'random') {
                     const gameArea = document.querySelector('.game-area');
                     const maxX = gameArea.offsetWidth - 100;
                     const maxY = gameArea.offsetHeight - 100;
                     const x = Math.random() * maxX + 50;
                     const y = Math.random() * maxY + 50;
-                    this.numberDisplay.style.left = x + 'px';
-                    this.numberDisplay.style.top = y + 'px';
-                    this.numberDisplay.classList.remove('fixed');
+                    this.stimulusDisplay.style.left = x + 'px';
+                    this.stimulusDisplay.style.top = y + 'px';
+                    this.stimulusDisplay.classList.remove('fixed');
                 } else {
-                    this.numberDisplay.classList.add('fixed');
+                    this.stimulusDisplay.classList.add('fixed');
                 }
                 
                 // Check if current is a match
@@ -574,7 +788,7 @@
                 this.responseGiven = false;
                 
                 if (this.currentIndex >= this.nLevel) {
-                    if (currentNumber === this.sequence[this.currentIndex - this.nLevel]) {
+                    if (currentItem === this.sequence[this.currentIndex - this.nLevel]) {
                         this.currentIsMatch = true;
                         this.totalMatches++;
                     }
@@ -583,13 +797,62 @@
                 // Update progress
                 this.progressEl.textContent = `${this.currentIndex + 1}/100`;
                 
-                // Schedule next number
+                // Schedule next stimulus
                 const speed = parseFloat(this.speedSlider.value) * 1000;
                 this.currentIndex++;
                 
                 this.gameInterval = setTimeout(() => {
-                    this.showNextNumber();
+                    this.showNextStimulus();
                 }, speed);
+            }
+            
+            createBeep(frequency, duration) {
+                if (!this.audioContext) {
+                    console.error('No audio context available');
+                    return;
+                }
+                
+                return new Promise((resolve) => {
+                    try {
+                        const oscillator = this.audioContext.createOscillator();
+                        const gainNode = this.audioContext.createGain();
+                        const now = this.audioContext.currentTime;
+                        
+                        oscillator.type = 'sine';
+                        oscillator.frequency.value = frequency;
+                        
+                        // 音量設定（元の音量設定の影響を受けないように独立）
+                        gainNode.gain.setValueAtTime(0, now);
+                        gainNode.gain.linearRampToValueAtTime(0.3, now + 0.01);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, now + duration);
+                        
+                        oscillator.connect(gainNode);
+                        gainNode.connect(this.audioContext.destination);
+                        
+                        oscillator.start(now);
+                        oscillator.stop(now + duration);
+                        
+                        oscillator.onended = () => {
+                            gainNode.disconnect();
+                            resolve();
+                        };
+                    } catch (error) {
+                        console.error('Error creating beep:', error);
+                        resolve();
+                    }
+                });
+            }
+            
+            async playCorrectSound() {
+                // 2つの短いビープ音（高音）
+                await this.createBeep(1000, 0.1);
+                await new Promise(resolve => setTimeout(resolve, 50));
+                await this.createBeep(1200, 0.1);
+            }
+            
+            async playIncorrectSound() {
+                // 1つの長いビープ音（低音）
+                await this.createBeep(200, 0.3);
             }
             
             handleMatchResponse() {
@@ -601,9 +864,11 @@
                     this.correctResponses++;
                     this.score++;
                     this.showFeedback('正解！', 'correct');
+                    this.playCorrectSound();
                 } else {
                     this.falsePositives++;
                     this.showFeedback('不正解', 'incorrect');
+                    this.playIncorrectSound();
                 }
                 
                 this.updateStats();
