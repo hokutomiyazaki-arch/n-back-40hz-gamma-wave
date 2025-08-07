@@ -1,4 +1,67 @@
-<!DOCTYPE html>
+showNextStimulus() {
+                if (this.currentIndex >= this.totalCount || !this.isPlaying) {
+                    this.stop();
+                    return;
+                }
+                
+                // Check if previous was a match and no response given
+                if (this.currentIndex > 0 && this.currentIsMatch && !this.responseGiven) {
+                    this.missedMatches++;
+                }
+                
+                // Play transition sound
+                if (this.currentIndex > 0) {
+                    this.playTransitionSound();
+                }
+                
+                // Display current stimulus
+                const currentItem = this.sequence[this.currentIndex];
+                
+                if (this.stimulusType === 'numbers') {
+                    this.stimulusDisplay.innerHTML = currentItem;
+                    this.stimulusDisplay.classList.remove('zodiac');
+                } else {
+                    const zodiacIndex = currentItem - 1;
+                    this.stimulusDisplay.innerHTML = this.zodiacAnimals[zodiacIndex].svg;
+                    this.stimulusDisplay.classList.add('zodiac');
+                }
+                
+                // Position stimulus
+                if (this.positionSelect.value === 'random') {
+                    const gameArea = document.querySelector('.game-area');
+                    const maxX = gameArea.offsetWidth - 100;
+                    const maxY = gameArea.offsetHeight - 100;
+                    const x = Math.random() * maxX + 50;
+                    const y = Math.random() * maxY + 50;
+                    this.stimulusDisplay.style.left = x + 'px';
+                    this.stimulusDisplay.style.top = y + 'px';
+                    this.stimulusDisplay.classList.remove('fixed');
+                } else {
+                    this.stimulusDisplay.classList.add('fixed');
+                }
+                
+                // Check if current is a match
+                this.currentIsMatch = false;
+                this.responseGiven = false;
+                
+                if (this.currentIndex >= this.nLevel) {
+                    if (currentItem === this.sequence[this.currentIndex - this.nLevel]) {
+                        this.currentIsMatch = true;
+                        this.totalMatches++;
+                    }
+                }
+                
+                // Update progress
+                this.progressEl.textContent = `${this.currentIndex + 1}/${this.totalCount}`;
+                
+                // Schedule next stimulus
+                const speed = parseFloat(this.speedSlider.value) * 1000;
+                this.currentIndex++;
+                
+                this.gameInterval = setTimeout(() => {
+                    this.showNextStimulus();
+                }, speed);
+            }<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -11,6 +74,18 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+        .feedback.show {
+            opacity: 1;
+        }
+
+        @keyframes pulse {
+            0% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.2); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+
+        .countdown.pulse {
+            animation: pulse 1s ease-in-out;
         }
 
         body {
@@ -257,7 +332,22 @@
             color: white;
         }
 
-        .feedback.show {
+        .countdown {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 8rem;
+            font-weight: bold;
+            color: white;
+            text-shadow: 0 0 50px rgba(255, 255, 255, 0.8);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+        .countdown.show {
             opacity: 1;
         }
 
@@ -298,6 +388,17 @@
                     <option value="2" selected>2-back</option>
                     <option value="3">3-back</option>
                 </select>
+            <div class="setting-group">
+                <label for="position">表示位置</label>
+                <select id="position">
+                    <option value="fixed">中央固定</option>
+                    <option value="random">ランダム</option>
+                </select>
+            </div>
+            
+            <div class="setting-group">
+                <label for="bgmVolume">BGM音量: <span id="bgmVolumeValue">20</span>%</label>
+                <input type="range" id="bgmVolume" min="0" max="100" value="20">
             </div>
             
             <div class="setting-group">
@@ -319,10 +420,11 @@
             </div>
             
             <div class="setting-group">
-                <label for="position">表示位置</label>
-                <select id="position">
-                    <option value="fixed">中央固定</option>
-                    <option value="random">ランダム</option>
+                <label for="totalCount">問題数</label>
+                <select id="totalCount">
+                    <option value="30">30問（6マッチ）</option>
+                    <option value="50">50問（10マッチ）</option>
+                    <option value="100" selected>100問（20マッチ）</option>
                 </select>
             </div>
         </div>
@@ -354,6 +456,7 @@
         </div>
         
         <div class="feedback" id="feedback"></div>
+        <div class="countdown" id="countdown"></div>
     </div>
 
     <script>
@@ -368,6 +471,8 @@
                 // Sound oscillators for feedback
                 this.correctSoundOsc = null;
                 this.incorrectSoundOsc = null;
+                this.bgmOscillator = null;
+                this.bgmGainNode = null;
                 
                 // Game state
                 this.isPlaying = false;
@@ -382,6 +487,8 @@
                 this.currentIsMatch = false;
                 this.responseGiven = false;
                 this.stimulusType = 'numbers';
+                this.totalCount = 100;
+                this.maxScore = 20;
                 
                 // Zodiac animals data
                 this.zodiacAnimals = [
@@ -410,12 +517,16 @@
                 this.speedValue = document.getElementById('speedValue');
                 this.volumeSlider = document.getElementById('volume');
                 this.volumeValue = document.getElementById('volumeValue');
+                this.bgmVolumeSlider = document.getElementById('bgmVolume');
+                this.bgmVolumeValue = document.getElementById('bgmVolumeValue');
                 this.positionSelect = document.getElementById('position');
                 this.stimulusTypeSelect = document.getElementById('stimulusType');
+                this.totalCountSelect = document.getElementById('totalCount');
                 this.progressEl = document.getElementById('progress');
                 this.scoreEl = document.getElementById('score');
                 this.accuracyEl = document.getElementById('accuracy');
                 this.feedbackEl = document.getElementById('feedback');
+                this.countdownEl = document.getElementById('countdown');
                 
                 this.initializeEventListeners();
             }
@@ -603,6 +714,19 @@
                     this.stimulusType = e.target.value;
                 });
                 
+                this.totalCountSelect.addEventListener('change', (e) => {
+                    this.totalCount = parseInt(e.target.value);
+                    this.maxScore = Math.floor(this.totalCount / 5);
+                });
+                
+                this.bgmVolumeSlider.addEventListener('input', (e) => {
+                    this.bgmVolumeValue.textContent = e.target.value;
+                    if (this.bgmGainNode) {
+                        const volume = e.target.value / 100;
+                        this.bgmGainNode.gain.setValueAtTime(volume * 0.2, this.audioContext.currentTime);
+                    }
+                });
+                
                 // Keyboard support
                 document.addEventListener('keydown', (e) => {
                     if (e.code === 'Space' && this.isPlaying && !this.matchBtn.disabled) {
@@ -613,19 +737,20 @@
             }
             
             generateSequence() {
-                // Generate 100 items with exactly 20 matches
+                // Generate sequence with exactly 1/5 matches
                 this.sequence = [];
+                this.maxScore = Math.floor(this.totalCount / 5);
                 const matchPositions = new Set();
                 const maxValue = this.stimulusType === 'numbers' ? 9 : 12;
                 
-                // Randomly select 20 positions for matches (must be >= nLevel)
-                while (matchPositions.size < 20) {
-                    const pos = Math.floor(Math.random() * (100 - this.nLevel)) + this.nLevel;
+                // Randomly select positions for matches (must be >= nLevel)
+                while (matchPositions.size < this.maxScore) {
+                    const pos = Math.floor(Math.random() * (this.totalCount - this.nLevel)) + this.nLevel;
                     matchPositions.add(pos);
                 }
                 
                 // Generate sequence
-                for (let i = 0; i < 100; i++) {
+                for (let i = 0; i < this.totalCount; i++) {
                     if (matchPositions.has(i)) {
                         // This should be a match
                         this.sequence.push(this.sequence[i - this.nLevel]);
@@ -642,10 +767,47 @@
                 console.log('Generated sequence with matches at:', Array.from(matchPositions).sort((a, b) => a - b));
             }
             
+            async startCountdown() {
+                return new Promise((resolve) => {
+                    let count = 3;
+                    this.countdownEl.classList.add('show');
+                    
+                    const countInterval = setInterval(() => {
+                        this.countdownEl.textContent = count;
+                        this.countdownEl.classList.add('pulse');
+                        this.playCountdownSound(count);
+                        
+                        setTimeout(() => {
+                            this.countdownEl.classList.remove('pulse');
+                        }, 500);
+                        
+                        count--;
+                        
+                        if (count < 0) {
+                            clearInterval(countInterval);
+                            this.countdownEl.classList.remove('show');
+                            this.countdownEl.textContent = '';
+                            resolve();
+                        }
+                    }, 1000);
+                });
+            }
+            
+            playCountdownSound(count) {
+                if (!this.audioContext) return;
+                
+                const frequency = count === 3 ? 440 : count === 2 ? 523 : count === 1 ? 659 : 784;
+                this.createBeep(frequency, 0.2);
+            }
+            
             async start() {
                 if (this.isPlaying) return;
                 
                 try {
+                    // Get total count and max score
+                    this.totalCount = parseInt(this.totalCountSelect.value);
+                    this.maxScore = Math.floor(this.totalCount / 5);
+                    
                     // Initialize audio
                     if (!this.audioContext) {
                         this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -669,6 +831,9 @@
                     this.gainNode.connect(this.audioContext.destination);
                     this.oscillator.start(0);
                     
+                    // Start BGM
+                    this.startBGM();
+                    
                     // Start light flashing
                     this.startLightFlashing();
                     
@@ -676,7 +841,7 @@
                     this.resetGame();
                     this.generateSequence();
                     
-                    // Start game
+                    // Update UI
                     this.isPlaying = true;
                     this.startBtn.disabled = true;
                     this.stopBtn.disabled = false;
@@ -685,6 +850,10 @@
                     this.speedSlider.disabled = true;
                     this.positionSelect.disabled = true;
                     this.stimulusTypeSelect.disabled = true;
+                    this.totalCountSelect.disabled = true;
+                    
+                    // Start countdown
+                    await this.startCountdown();
                     
                     // Start showing stimuli
                     this.showNextStimulus();
@@ -710,6 +879,9 @@
                     this.gainNode = null;
                 }
                 
+                // Stop BGM
+                this.stopBGM();
+                
                 // Stop light
                 this.stopLightFlashing();
                 
@@ -728,6 +900,7 @@
                 this.speedSlider.disabled = false;
                 this.positionSelect.disabled = false;
                 this.stimulusTypeSelect.disabled = false;
+                this.totalCountSelect.disabled = false;
                 this.stimulusDisplay.innerHTML = '';
                 
                 // Show final results
@@ -747,7 +920,7 @@
             }
             
             showNextStimulus() {
-                if (this.currentIndex >= 100 || !this.isPlaying) {
+                if (this.currentIndex >= this.totalCount || !this.isPlaying) {
                     this.stop();
                     return;
                 }
@@ -755,6 +928,11 @@
                 // Check if previous was a match and no response given
                 if (this.currentIndex > 0 && this.currentIsMatch && !this.responseGiven) {
                     this.missedMatches++;
+                }
+                
+                // Play transition sound
+                if (this.currentIndex > 0) {
+                    this.playTransitionSound();
                 }
                 
                 // Display current stimulus
@@ -795,7 +973,7 @@
                 }
                 
                 // Update progress
-                this.progressEl.textContent = `${this.currentIndex + 1}/100`;
+                this.progressEl.textContent = `${this.currentIndex + 1}/${this.totalCount}`;
                 
                 // Schedule next stimulus
                 const speed = parseFloat(this.speedSlider.value) * 1000;
@@ -804,6 +982,81 @@
                 this.gameInterval = setTimeout(() => {
                     this.showNextStimulus();
                 }, speed);
+            }
+            
+            startBGM() {
+                if (!this.audioContext) return;
+                
+                try {
+                    // Create a simple BGM pattern
+                    const now = this.audioContext.currentTime;
+                    
+                    // Create multiple oscillators for harmony
+                    const createBGMOscillator = (frequency, gain) => {
+                        const osc = this.audioContext.createOscillator();
+                        const gainNode = this.audioContext.createGain();
+                        const bgmVolume = this.bgmVolumeSlider.value / 100;
+                        
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(frequency, now);
+                        gainNode.gain.setValueAtTime(gain * bgmVolume * 0.2, now);
+                        
+                        osc.connect(gainNode);
+                        gainNode.connect(this.audioContext.destination);
+                        
+                        return { osc, gainNode };
+                    };
+                    
+                    // Create chord progression
+                    this.bgmOscillators = [
+                        createBGMOscillator(130.81, 0.3),  // C3
+                        createBGMOscillator(164.81, 0.2),  // E3
+                        createBGMOscillator(196.00, 0.2),  // G3
+                    ];
+                    
+                    // Store main gain node reference
+                    this.bgmGainNode = this.bgmOscillators[0].gainNode;
+                    
+                    // Start all oscillators
+                    this.bgmOscillators.forEach(({ osc }) => osc.start(now));
+                    
+                } catch (error) {
+                    console.error('Error starting BGM:', error);
+                }
+            }
+            
+            stopBGM() {
+                if (this.bgmOscillators) {
+                    this.bgmOscillators.forEach(({ osc, gainNode }) => {
+                        try {
+                            osc.stop();
+                            osc.disconnect();
+                            gainNode.disconnect();
+                        } catch (e) {}
+                    });
+                    this.bgmOscillators = null;
+                    this.bgmGainNode = null;
+                }
+            }
+            
+            async playFanfare() {
+                if (!this.audioContext) return;
+                
+                // Victory fanfare melody
+                const notes = [
+                    { freq: 523, dur: 0.2 },  // C5
+                    { freq: 523, dur: 0.1 },  // C5
+                    { freq: 523, dur: 0.1 },  // C5
+                    { freq: 659, dur: 0.4 },  // E5
+                    { freq: 784, dur: 0.2 },  // G5
+                    { freq: 659, dur: 0.2 },  // E5
+                    { freq: 784, dur: 0.6 },  // G5
+                ];
+                
+                for (const note of notes) {
+                    await this.createBeep(note.freq, note.dur);
+                    await new Promise(resolve => setTimeout(resolve, note.dur * 1000));
+                }
             }
             
             createBeep(frequency, duration) {
@@ -884,7 +1137,7 @@
             }
             
             updateStats() {
-                this.scoreEl.textContent = `${this.score}/20`;
+                this.scoreEl.textContent = `${this.score}/${this.maxScore}`;
                 
                 const totalResponses = this.correctResponses + this.falsePositives;
                 const accuracy = totalResponses > 0 
@@ -893,12 +1146,26 @@
                 this.accuracyEl.textContent = `${accuracy}%`;
             }
             
-            showFinalResults() {
-                const totalPossibleMatches = 20;
+            async showFinalResults() {
                 const finalScore = this.correctResponses;
-                const missed = totalPossibleMatches - this.correctResponses;
+                const missed = this.maxScore - this.correctResponses;
+                const accuracy = this.correctResponses + this.falsePositives > 0 
+                    ? Math.round((this.correctResponses / (this.correctResponses + this.falsePositives)) * 100)
+                    : 0;
                 
-                alert(`ゲーム終了！\n\nスコア: ${finalScore}/20\n正解: ${this.correctResponses}\n見逃し: ${missed}\n誤答: ${this.falsePositives}\n\n正解率: ${Math.round((this.correctResponses / (this.correctResponses + this.falsePositives)) * 100)}%`);
+                // Check if perfect score
+                if (finalScore === this.maxScore && this.falsePositives === 0) {
+                    await this.playFanfare();
+                    alert(`🎉 パーフェクト！！ 🎉\n\nスコア: ${finalScore}/${this.maxScore}\n正解: ${this.correctResponses}\n見逃し: ${missed}\n誤答: ${this.falsePositives}\n\n正解率: ${accuracy}%\n\n素晴らしい成績です！`);
+                } else {
+                    alert(`ゲーム終了！\n\nスコア: ${finalScore}/${this.maxScore}\n正解: ${this.correctResponses}\n見逃し: ${missed}\n誤答: ${this.falsePositives}\n\n正解率: ${accuracy}%`);
+                }
+            }
+            
+            playTransitionSound() {
+                if (!this.audioContext) return;
+                // Quick swoosh sound for stimulus change
+                this.createBeep(600, 0.05);
             }
             
             startLightFlashing() {
