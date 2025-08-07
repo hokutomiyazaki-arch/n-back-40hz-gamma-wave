@@ -280,11 +280,6 @@
                 <label>音量: <span id="volumeValue">30</span>%</label>
                 <input type="range" id="volume" min="0" max="100" value="30">
             </div>
-            
-            <div class="setting-group">
-                <label>BGM音量: <span id="bgmVolumeValue">20</span>%</label>
-                <input type="range" id="bgmVolume" min="0" max="100" value="20">
-            </div>
         </div>
         
         <div class="game-area">
@@ -322,7 +317,6 @@
         let audioContext = null;
         let oscillator = null;
         let gainNode = null;
-        let bgmOscillators = [];
         let lightInterval = null;
         let gameInterval = null;
         
@@ -350,8 +344,6 @@
             speedValue: document.getElementById('speedValue'),
             volumeSlider: document.getElementById('volume'),
             volumeValue: document.getElementById('volumeValue'),
-            bgmVolumeSlider: document.getElementById('bgmVolume'),
-            bgmVolumeValue: document.getElementById('bgmVolumeValue'),
             positionSelect: document.getElementById('position'),
             totalCountSelect: document.getElementById('totalCount'),
             progressEl: document.getElementById('progress'),
@@ -377,11 +369,6 @@
         elements.volumeSlider.addEventListener('input', (e) => {
             elements.volumeValue.textContent = e.target.value;
             updateVolume();
-        });
-        
-        elements.bgmVolumeSlider.addEventListener('input', (e) => {
-            elements.bgmVolumeValue.textContent = e.target.value;
-            updateBGMVolume();
         });
         
         elements.totalCountSelect.addEventListener('change', (e) => {
