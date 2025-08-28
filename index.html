@@ -287,6 +287,11 @@
             transition: opacity 0.3s ease;
             z-index: 1000;
             pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 200px;
+            height: 200px;
         }
 
         .countdown.show {
@@ -673,17 +678,25 @@
         async function startCountdown() {
             return new Promise((resolve) => {
                 let count = 3;
+                elements.countdownEl.style.display = 'flex';
                 elements.countdownEl.classList.add('show');
                 
+                // 最初の数字を表示
+                elements.countdownEl.textContent = count;
+                
                 const interval = setInterval(async () => {
-                    elements.countdownEl.textContent = count;
                     const freq = count === 3 ? 440 : count === 2 ? 523 : count === 1 ? 659 : 784;
                     await createBeep(freq, 0.2);
                     
                     count--;
-                    if (count < 0) {
+                    
+                    if (count > 0) {
+                        elements.countdownEl.textContent = count;
+                    } else if (count === 0) {
+                        elements.countdownEl.textContent = '';
                         clearInterval(interval);
                         elements.countdownEl.classList.remove('show');
+                        elements.countdownEl.style.display = 'none';
                         resolve();
                     }
                 }, 1000);
@@ -1051,6 +1064,15 @@
 
         // Initialize the app
         initializeEventListeners();
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => console.log('SW registered'))
+                    .catch(err => console.log('SW registration failed'));
+            });
+        }
     </script>
 </body>
 </html>
