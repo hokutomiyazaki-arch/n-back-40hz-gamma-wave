@@ -9,13 +9,6 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-        .feedback.show {
-            opacity: 1;
-        function updateVolume() {
-            if (gainNode && !isMuted) {
-                const volume = elements.volumeSlider.value / 100;
-                gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
-            }
         }
 
         body {
@@ -185,6 +178,15 @@
             padding: 20px 40px;
         }
 
+        .mute-btn {
+            background: #555;
+            color: white;
+        }
+
+        .mute-btn.active {
+            background: #e74c3c;
+        }
+
         button:disabled {
             opacity: 0.5;
             cursor: not-allowed;
@@ -260,13 +262,8 @@
             color: white;
         }
 
-        .mute-btn {
-            background: #555;
-            color: white;
-        }
-
-        .mute-btn.active {
-            background: #e74c3c;
+        .feedback.show {
+            opacity: 1;
         }
 
         @media (max-width: 600px) {
@@ -304,7 +301,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <img src="https://hokutomiyazaki-arch.github.io/n-back-40hz-gamma-wave/FNT_color2.png" alt="Logo" class="logo">
+            <img src="FNT_color2.png" alt="Logo" class="logo">
             <h1>40Hz n-back認知トレーニング</h1>
         </div>
         
@@ -390,13 +387,12 @@
     </div>
 
     <script>
-        // Game Logic
+        // Game state variables
         let audioContext = null;
         let oscillator = null;
         let gainNode = null;
         let lightInterval = null;
         let gameInterval = null;
-        
         let isPlaying = false;
         let sequence = [];
         let currentIndex = 0;
@@ -411,174 +407,30 @@
         let stimulusType = 'numbers';
         let isMuted = false;
 
-        // Zodiac animals SVG data
+        // Zodiac animals data
         const zodiacAnimals = [
-            { 
-                name: '子(ネズミ)', 
-                svg: `<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="50" cy="55" r="20" fill="#888"/>
-                    <circle cx="35" cy="35" r="8" fill="#888"/>
-                    <circle cx="65" cy="35" r="8" fill="#888"/>
-                    <ellipse cx="50" cy="75" rx="15" ry="10" fill="#888"/>
-                    <circle cx="42" cy="50" r="3" fill="#fff"/>
-                    <circle cx="58" cy="50" r="3" fill="#fff"/>
-                    <path d="M 50 55 Q 50 60 45 58" stroke="#fff" fill="none" stroke-width="2"/>
-                    <path d="M 20 60 Q 10 65 5 55" stroke="#888" fill="none" stroke-width="3"/>
-                </svg>`
-            },
-            { 
-                name: '丑(ウシ)', 
-                svg: `<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                    <ellipse cx="50" cy="60" rx="25" ry="20" fill="#8B4513"/>
-                    <path d="M 30 45 Q 20 30 25 35" stroke="#8B4513" fill="none" stroke-width="4"/>
-                    <path d="M 70 45 Q 80 30 75 35" stroke="#8B4513" fill="none" stroke-width="4"/>
-                    <circle cx="40" cy="55" r="3" fill="#000"/>
-                    <circle cx="60" cy="55" r="3" fill="#000"/>
-                    <ellipse cx="50" cy="65" rx="8" ry="5" fill="#FFB6C1"/>
-                    <circle cx="45" cy="65" r="2" fill="#000"/>
-                    <circle cx="55" cy="65" r="2" fill="#000"/>
-                </svg>`
-            },
-            { 
-                name: '寅(トラ)', 
-                svg: `<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="50" cy="50" r="25" fill="#FF8C00"/>
-                    <path d="M 30 35 L 35 25 L 40 35" fill="#FF8C00"/>
-                    <path d="M 60 35 L 65 25 L 70 35" fill="#FF8C00"/>
-                    <circle cx="40" cy="45" r="3" fill="#000"/>
-                    <circle cx="60" cy="45" r="3" fill="#000"/>
-                    <path d="M 50 55 L 45 60 L 55 60 Z" fill="#000"/>
-                    <path d="M 25 40 L 30 38" stroke="#000" stroke-width="2"/>
-                    <path d="M 25 45 L 30 45" stroke="#000" stroke-width="2"/>
-                    <path d="M 25 50 L 30 52" stroke="#000" stroke-width="2"/>
-                    <path d="M 75 40 L 70 38" stroke="#000" stroke-width="2"/>
-                    <path d="M 75 45 L 70 45" stroke="#000" stroke-width="2"/>
-                    <path d="M 75 50 L 70 52" stroke="#000" stroke-width="2"/>
-                </svg>`
-            },
-            { 
-                name: '卯(ウサギ)', 
-                svg: `<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                    <ellipse cx="50" cy="60" rx="20" ry="18" fill="#FFF"/>
-                    <ellipse cx="40" cy="30" rx="8" ry="20" fill="#FFF"/>
-                    <ellipse cx="60" cy="30" rx="8" ry="20" fill="#FFF"/>
-                    <circle cx="42" cy="55" r="3" fill="#FF1493"/>
-                    <circle cx="58" cy="55" r="3" fill="#FF1493"/>
-                    <circle cx="50" cy="63" r="2" fill="#FF1493"/>
-                    <path d="M 45 65 Q 50 68 55 65" stroke="#FF1493" fill="none" stroke-width="1.5"/>
-                </svg>`
-            },
-            { 
-                name: '辰(リュウ)', 
-                svg: `<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M 30 50 Q 50 30 70 50 Q 60 70 40 70 Q 20 70 30 50" fill="#228B22"/>
-                    <path d="M 35 40 L 30 35 L 33 40" fill="#228B22"/>
-                    <path d="M 65 40 L 70 35 L 67 40" fill="#228B22"/>
-                    <circle cx="40" cy="50" r="3" fill="#FFD700"/>
-                    <circle cx="60" cy="50" r="3" fill="#FFD700"/>
-                    <path d="M 45 60 Q 50 65 55 60" stroke="#FFD700" fill="none" stroke-width="2"/>
-                    <path d="M 15 60 Q 25 55 30 60" stroke="#228B22" fill="none" stroke-width="3"/>
-                </svg>`
-            },
-            { 
-                name: '巳(ヘビ)', 
-                svg: `<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M 30 30 Q 70 30 70 50 Q 70 70 30 70 Q 30 50 50 50 Q 70 50 70 30" 
-                          stroke="#006400" fill="none" stroke-width="8" stroke-linecap="round"/>
-                    <circle cx="70" cy="30" r="8" fill="#006400"/>
-                    <circle cx="67" cy="28" r="2" fill="#FFD700"/>
-                    <circle cx="73" cy="28" r="2" fill="#FFD700"/>
-                    <path d="M 70 25 L 68 20 M 70 25 L 72 20" stroke="#FF0000" stroke-width="2"/>
-                </svg>`
-            },
-            { 
-                name: '午(ウマ)', 
-                svg: `<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                    <ellipse cx="50" cy="55" rx="20" ry="25" fill="#8B4513"/>
-                    <path d="M 45 35 Q 50 20 55 35" stroke="#8B4513" fill="#8B4513" stroke-width="5"/>
-                    <rect x="40" y="20" width="5" height="15" fill="#000"/>
-                    <rect x="55" y="20" width="5" height="15" fill="#000"/>
-                    <circle cx="42" cy="45" r="3" fill="#000"/>
-                    <circle cx="58" cy="45" r="3" fill="#000"/>
-                    <ellipse cx="50" cy="60" rx="10" ry="7" fill="#654321"/>
-                    <circle cx="46" cy="60" r="2" fill="#000"/>
-                    <circle cx="54" cy="60" r="2" fill="#000"/>
-                </svg>`
-            },
-            { 
-                name: '未(ヒツジ)', 
-                svg: `<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="35" cy="45" r="8" fill="#FFF" opacity="0.9"/>
-                    <circle cx="45" cy="40" r="8" fill="#FFF" opacity="0.9"/>
-                    <circle cx="55" cy="40" r="8" fill="#FFF" opacity="0.9"/>
-                    <circle cx="65" cy="45" r="8" fill="#FFF" opacity="0.9"/>
-                    <circle cx="40" cy="55" r="8" fill="#FFF" opacity="0.9"/>
-                    <circle cx="60" cy="55" r="8" fill="#FFF" opacity="0.9"/>
-                    <circle cx="50" cy="60" r="8" fill="#FFF" opacity="0.9"/>
-                    <ellipse cx="50" cy="55" rx="15" ry="12" fill="#FFB6C1"/>
-                    <circle cx="45" cy="52" r="2" fill="#000"/>
-                    <circle cx="55" cy="52" r="2" fill="#000"/>
-                    <path d="M 45 58 Q 50 60 55 58" stroke="#000" fill="none" stroke-width="1.5"/>
-                </svg>`
-            },
-            { 
-                name: '申(サル)', 
-                svg: `<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="50" cy="50" r="20" fill="#8B4513"/>
-                    <circle cx="35" cy="45" r="10" fill="#D2691E"/>
-                    <circle cx="65" cy="45" r="10" fill="#D2691E"/>
-                    <circle cx="40" cy="45" r="3" fill="#000"/>
-                    <circle cx="60" cy="45" r="3" fill="#000"/>
-                    <ellipse cx="50" cy="60" rx="12" ry="8" fill="#D2691E"/>
-                    <path d="M 45 55 Q 50 58 55 55" stroke="#000" fill="none" stroke-width="2"/>
-                </svg>`
-            },
-            { 
-                name: '酉(トリ)', 
-                svg: `<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                    <ellipse cx="50" cy="55" rx="20" ry="25" fill="#DC143C"/>
-                    <path d="M 50 30 L 45 20 L 50 25 L 55 20 Z" fill="#DC143C"/>
-                    <path d="M 40 65 L 35 75 M 50 68 L 50 78 M 60 65 L 65 75" stroke="#FFD700" stroke-width="3"/>
-                    <circle cx="42" cy="45" r="3" fill="#000"/>
-                    <circle cx="58" cy="45" r="3" fill="#000"/>
-                    <path d="M 45 50 L 50 55 L 55 50" stroke="#FFD700" fill="none" stroke-width="3"/>
-                    <ellipse cx="50" cy="60" rx="8" ry="5" fill="#FFD700"/>
-                </svg>`
-            },
-            { 
-                name: '戌(イヌ)', 
-                svg: `<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                    <ellipse cx="50" cy="55" rx="20" ry="18" fill="#8B4513"/>
-                    <path d="M 30 40 Q 25 30 35 35" fill="#8B4513"/>
-                    <path d="M 70 40 Q 75 30 65 35" fill="#8B4513"/>
-                    <circle cx="42" cy="50" r="3" fill="#000"/>
-                    <circle cx="58" cy="50" r="3" fill="#000"/>
-                    <ellipse cx="50" cy="62" rx="6" ry="4" fill="#000"/>
-                    <path d="M 45 65 Q 50 68 55 65" stroke="#FF1493" fill="none" stroke-width="2"/>
-                    <path d="M 20 70 Q 30 65 25 75" stroke="#8B4513" fill="none" stroke-width="4"/>
-                </svg>`
-            },
-            { 
-                name: '亥(イノシシ)', 
-                svg: `<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                    <ellipse cx="50" cy="55" rx="25" ry="20" fill="#654321"/>
-                    <ellipse cx="50" cy="60" rx="12" ry="8" fill="#FFB6C1"/>
-                    <circle cx="45" cy="60" r="3" fill="#000"/>
-                    <circle cx="55" cy="60" r="3" fill="#000"/>
-                    <circle cx="40" cy="48" r="3" fill="#000"/>
-                    <circle cx="60" cy="48" r="3" fill="#000"/>
-                    <path d="M 35 65 L 30 70 M 65 65 L 70 70" stroke="#FFF" stroke-width="3"/>
-                </svg>`
-            }
+            { name: '子(ネズミ)', svg: '<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="55" r="20" fill="#888"/><circle cx="35" cy="35" r="8" fill="#888"/><circle cx="65" cy="35" r="8" fill="#888"/><ellipse cx="50" cy="75" rx="15" ry="10" fill="#888"/><circle cx="42" cy="50" r="3" fill="#fff"/><circle cx="58" cy="50" r="3" fill="#fff"/><path d="M 50 55 Q 50 60 45 58" stroke="#fff" fill="none" stroke-width="2"/><path d="M 20 60 Q 10 65 5 55" stroke="#888" fill="none" stroke-width="3"/></svg>' },
+            { name: '丑(ウシ)', svg: '<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><ellipse cx="50" cy="60" rx="25" ry="20" fill="#8B4513"/><path d="M 30 45 Q 20 30 25 35" stroke="#8B4513" fill="none" stroke-width="4"/><path d="M 70 45 Q 80 30 75 35" stroke="#8B4513" fill="none" stroke-width="4"/><circle cx="40" cy="55" r="3" fill="#000"/><circle cx="60" cy="55" r="3" fill="#000"/><ellipse cx="50" cy="65" rx="8" ry="5" fill="#FFB6C1"/><circle cx="45" cy="65" r="2" fill="#000"/><circle cx="55" cy="65" r="2" fill="#000"/></svg>' },
+            { name: '寅(トラ)', svg: '<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="25" fill="#FF8C00"/><path d="M 30 35 L 35 25 L 40 35" fill="#FF8C00"/><path d="M 60 35 L 65 25 L 70 35" fill="#FF8C00"/><circle cx="40" cy="45" r="3" fill="#000"/><circle cx="60" cy="45" r="3" fill="#000"/><path d="M 50 55 L 45 60 L 55 60 Z" fill="#000"/><path d="M 25 40 L 30 38" stroke="#000" stroke-width="2"/><path d="M 25 45 L 30 45" stroke="#000" stroke-width="2"/><path d="M 25 50 L 30 52" stroke="#000" stroke-width="2"/><path d="M 75 40 L 70 38" stroke="#000" stroke-width="2"/><path d="M 75 45 L 70 45" stroke="#000" stroke-width="2"/><path d="M 75 50 L 70 52" stroke="#000" stroke-width="2"/></svg>' },
+            { name: '卯(ウサギ)', svg: '<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><ellipse cx="50" cy="60" rx="20" ry="18" fill="#FFF"/><ellipse cx="40" cy="30" rx="8" ry="20" fill="#FFF"/><ellipse cx="60" cy="30" rx="8" ry="20" fill="#FFF"/><circle cx="42" cy="55" r="3" fill="#FF1493"/><circle cx="58" cy="55" r="3" fill="#FF1493"/><circle cx="50" cy="63" r="2" fill="#FF1493"/><path d="M 45 65 Q 50 68 55 65" stroke="#FF1493" fill="none" stroke-width="1.5"/></svg>' },
+            { name: '辰(リュウ)', svg: '<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path d="M 30 50 Q 50 30 70 50 Q 60 70 40 70 Q 20 70 30 50" fill="#228B22"/><path d="M 35 40 L 30 35 L 33 40" fill="#228B22"/><path d="M 65 40 L 70 35 L 67 40" fill="#228B22"/><circle cx="40" cy="50" r="3" fill="#FFD700"/><circle cx="60" cy="50" r="3" fill="#FFD700"/><path d="M 45 60 Q 50 65 55 60" stroke="#FFD700" fill="none" stroke-width="2"/><path d="M 15 60 Q 25 55 30 60" stroke="#228B22" fill="none" stroke-width="3"/></svg>' },
+            { name: '巳(ヘビ)', svg: '<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path d="M 30 30 Q 70 30 70 50 Q 70 70 30 70 Q 30 50 50 50 Q 70 50 70 30" stroke="#006400" fill="none" stroke-width="8" stroke-linecap="round"/><circle cx="70" cy="30" r="8" fill="#006400"/><circle cx="67" cy="28" r="2" fill="#FFD700"/><circle cx="73" cy="28" r="2" fill="#FFD700"/><path d="M 70 25 L 68 20 M 70 25 L 72 20" stroke="#FF0000" stroke-width="2"/></svg>' },
+            { name: '午(ウマ)', svg: '<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><ellipse cx="50" cy="55" rx="20" ry="25" fill="#8B4513"/><path d="M 45 35 Q 50 20 55 35" stroke="#8B4513" fill="#8B4513" stroke-width="5"/><rect x="40" y="20" width="5" height="15" fill="#000"/><rect x="55" y="20" width="5" height="15" fill="#000"/><circle cx="42" cy="45" r="3" fill="#000"/><circle cx="58" cy="45" r="3" fill="#000"/><ellipse cx="50" cy="60" rx="10" ry="7" fill="#654321"/><circle cx="46" cy="60" r="2" fill="#000"/><circle cx="54" cy="60" r="2" fill="#000"/></svg>' },
+            { name: '未(ヒツジ)', svg: '<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="35" cy="45" r="8" fill="#FFF" opacity="0.9"/><circle cx="45" cy="40" r="8" fill="#FFF" opacity="0.9"/><circle cx="55" cy="40" r="8" fill="#FFF" opacity="0.9"/><circle cx="65" cy="45" r="8" fill="#FFF" opacity="0.9"/><circle cx="40" cy="55" r="8" fill="#FFF" opacity="0.9"/><circle cx="60" cy="55" r="8" fill="#FFF" opacity="0.9"/><circle cx="50" cy="60" r="8" fill="#FFF" opacity="0.9"/><ellipse cx="50" cy="55" rx="15" ry="12" fill="#FFB6C1"/><circle cx="45" cy="52" r="2" fill="#000"/><circle cx="55" cy="52" r="2" fill="#000"/><path d="M 45 58 Q 50 60 55 58" stroke="#000" fill="none" stroke-width="1.5"/></svg>' },
+            { name: '申(サル)', svg: '<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="20" fill="#8B4513"/><circle cx="35" cy="45" r="10" fill="#D2691E"/><circle cx="65" cy="45" r="10" fill="#D2691E"/><circle cx="40" cy="45" r="3" fill="#000"/><circle cx="60" cy="45" r="3" fill="#000"/><ellipse cx="50" cy="60" rx="12" ry="8" fill="#D2691E"/><path d="M 45 55 Q 50 58 55 55" stroke="#000" fill="none" stroke-width="2"/></svg>' },
+            { name: '酉(トリ)', svg: '<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><ellipse cx="50" cy="55" rx="20" ry="25" fill="#DC143C"/><path d="M 50 30 L 45 20 L 50 25 L 55 20 Z" fill="#DC143C"/><path d="M 40 65 L 35 75 M 50 68 L 50 78 M 60 65 L 65 75" stroke="#FFD700" stroke-width="3"/><circle cx="42" cy="45" r="3" fill="#000"/><circle cx="58" cy="45" r="3" fill="#000"/><path d="M 45 50 L 50 55 L 55 50" stroke="#FFD700" fill="none" stroke-width="3"/><ellipse cx="50" cy="60" rx="8" ry="5" fill="#FFD700"/></svg>' },
+            { name: '戌(イヌ)', svg: '<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><ellipse cx="50" cy="55" rx="20" ry="18" fill="#8B4513"/><path d="M 30 40 Q 25 30 35 35" fill="#8B4513"/><path d="M 70 40 Q 75 30 65 35" fill="#8B4513"/><circle cx="42" cy="50" r="3" fill="#000"/><circle cx="58" cy="50" r="3" fill="#000"/><ellipse cx="50" cy="62" rx="6" ry="4" fill="#000"/><path d="M 45 65 Q 50 68 55 65" stroke="#FF1493" fill="none" stroke-width="2"/><path d="M 20 70 Q 30 65 25 75" stroke="#8B4513" fill="none" stroke-width="4"/></svg>' },
+            { name: '亥(イノシシ)', svg: '<svg class="zodiac-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><ellipse cx="50" cy="55" rx="25" ry="20" fill="#654321"/><ellipse cx="50" cy="60" rx="12" ry="8" fill="#FFB6C1"/><circle cx="45" cy="60" r="3" fill="#000"/><circle cx="55" cy="60" r="3" fill="#000"/><circle cx="40" cy="48" r="3" fill="#000"/><circle cx="60" cy="48" r="3" fill="#000"/><path d="M 35 65 L 30 70 M 65 65 L 70 70" stroke="#FFF" stroke-width="3"/></svg>' }
         ];
 
-        // DOM Elements
+        // DOM elements
         const elements = {
             lightDisplay: document.getElementById('lightDisplay'),
             stimulusDisplay: document.getElementById('stimulusDisplay'),
             startBtn: document.getElementById('startBtn'),
             stopBtn: document.getElementById('stopBtn'),
             matchBtn: document.getElementById('matchBtn'),
+            muteBtn: document.getElementById('muteBtn'),
             nLevelSelect: document.getElementById('nLevel'),
             speedSlider: document.getElementById('speed'),
             speedValue: document.getElementById('speedValue'),
@@ -591,47 +443,47 @@
             scoreEl: document.getElementById('score'),
             accuracyEl: document.getElementById('accuracy'),
             countdownEl: document.getElementById('countdown'),
-            feedbackEl: document.getElementById('feedback'),
-            muteBtn: document.getElementById('muteBtn')
+            feedbackEl: document.getElementById('feedback')
         };
 
-        // Event Listeners
-        elements.startBtn.addEventListener('click', start);
-        elements.stopBtn.addEventListener('click', stop);
-        elements.matchBtn.addEventListener('click', handleMatchResponse);
-        
-        elements.nLevelSelect.addEventListener('change', (e) => {
-            nLevel = parseInt(e.target.value);
-        });
-        
-        elements.speedSlider.addEventListener('input', (e) => {
-            elements.speedValue.textContent = e.target.value;
-        });
-        
-        elements.volumeSlider.addEventListener('input', (e) => {
-            elements.volumeValue.textContent = e.target.value;
-            updateVolume();
-        });
-        
-        elements.totalCountSelect.addEventListener('change', (e) => {
-            totalCount = parseInt(e.target.value);
-            maxScore = Math.floor(totalCount / 5);
-        });
-        
-        elements.stimulusTypeSelect.addEventListener('change', (e) => {
-            stimulusType = e.target.value;
-        });
-        
-        elements.muteBtn.addEventListener('click', toggleMute);
-        
-        document.addEventListener('keydown', (e) => {
-            if (e.code === 'Space' && isPlaying && !elements.matchBtn.disabled) {
-                e.preventDefault();
-                handleMatchResponse();
-            }
-        });
+        // Initialize event listeners
+        function initializeEventListeners() {
+            elements.startBtn.addEventListener('click', start);
+            elements.stopBtn.addEventListener('click', stop);
+            elements.matchBtn.addEventListener('click', handleMatchResponse);
+            elements.muteBtn.addEventListener('click', toggleMute);
+            
+            elements.nLevelSelect.addEventListener('change', (e) => {
+                nLevel = parseInt(e.target.value);
+            });
+            
+            elements.speedSlider.addEventListener('input', (e) => {
+                elements.speedValue.textContent = e.target.value;
+            });
+            
+            elements.volumeSlider.addEventListener('input', (e) => {
+                elements.volumeValue.textContent = e.target.value;
+                updateVolume();
+            });
+            
+            elements.totalCountSelect.addEventListener('change', (e) => {
+                totalCount = parseInt(e.target.value);
+                maxScore = Math.floor(totalCount / 5);
+            });
+            
+            elements.stimulusTypeSelect.addEventListener('change', (e) => {
+                stimulusType = e.target.value;
+            });
+            
+            document.addEventListener('keydown', (e) => {
+                if (e.code === 'Space' && isPlaying && !elements.matchBtn.disabled) {
+                    e.preventDefault();
+                    handleMatchResponse();
+                }
+            });
+        }
 
-        // Audio Functions
+        // Audio functions
         function createBeep(frequency, duration) {
             if (!audioContext) return Promise.resolve();
             
@@ -665,13 +517,19 @@
             });
         }
 
+        function updateVolume() {
+            if (gainNode && !isMuted) {
+                const volume = elements.volumeSlider.value / 100;
+                gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+            }
+        }
+
         function toggleMute() {
             isMuted = !isMuted;
             elements.muteBtn.textContent = isMuted ? '音光ON' : '音光OFF';
             elements.muteBtn.classList.toggle('active', isMuted);
             
             if (isMuted) {
-                // Stop 40Hz sound
                 if (oscillator) {
                     oscillator.stop();
                     oscillator.disconnect();
@@ -681,10 +539,8 @@
                     gainNode.disconnect();
                     gainNode = null;
                 }
-                // Stop light
                 stopLightFlashing();
             } else if (isPlaying) {
-                // Restart 40Hz sound and light
                 try {
                     oscillator = audioContext.createOscillator();
                     gainNode = audioContext.createGain();
@@ -706,7 +562,7 @@
             }
         }
 
-        // Game Functions
+        // Game functions
         function generateSequence() {
             sequence = [];
             const matchPositions = new Set();
@@ -754,7 +610,6 @@
             if (isPlaying) return;
             
             try {
-                // Initialize audio
                 if (!audioContext) {
                     audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 }
@@ -763,7 +618,6 @@
                     await audioContext.resume();
                 }
                 
-                // Create 40Hz tone if not muted
                 if (!isMuted) {
                     oscillator = audioContext.createOscillator();
                     gainNode = audioContext.createGain();
@@ -778,15 +632,12 @@
                     gainNode.connect(audioContext.destination);
                     oscillator.start();
                     
-                    // Start light flashing
                     startLightFlashing();
                 }
                 
-                // Initialize game
                 resetGame();
                 generateSequence();
                 
-                // Update UI
                 isPlaying = true;
                 elements.startBtn.disabled = true;
                 elements.stopBtn.disabled = false;
@@ -797,10 +648,8 @@
                 elements.stimulusTypeSelect.disabled = true;
                 elements.totalCountSelect.disabled = true;
                 
-                // Countdown
                 await startCountdown();
                 
-                // Start game
                 showNextStimulus();
                 
             } catch (error) {
@@ -812,10 +661,8 @@
         function stop() {
             if (!isPlaying) return;
             
-            // Update state immediately
             isPlaying = false;
             
-            // Stop audio
             if (oscillator) {
                 try {
                     oscillator.stop();
@@ -835,16 +682,13 @@
                 gainNode = null;
             }
             
-            // Stop light
             stopLightFlashing();
             
-            // Stop game
             if (gameInterval) {
                 clearTimeout(gameInterval);
                 gameInterval = null;
             }
             
-            // Update UI
             elements.startBtn.disabled = false;
             elements.stopBtn.disabled = true;
             elements.matchBtn.disabled = true;
@@ -855,7 +699,6 @@
             elements.totalCountSelect.disabled = false;
             elements.stimulusDisplay.innerHTML = '';
             
-            // Show results
             if (currentIndex > 0) {
                 showFinalResults();
             }
@@ -871,23 +714,19 @@
         }
 
         function showNextStimulus() {
-            // Check if should stop
             if (!isPlaying || currentIndex >= totalCount) {
                 stop();
                 return;
             }
             
-            // Check previous response
             if (currentIndex > 0 && currentIsMatch && !responseGiven) {
                 // Missed a match
             }
             
-            // Play transition sound
             if (currentIndex > 0) {
                 createBeep(600, 0.05);
             }
             
-            // Display stimulus
             const currentItem = sequence[currentIndex];
             
             if (stimulusType === 'numbers') {
@@ -899,7 +738,6 @@
                 elements.stimulusDisplay.classList.add('zodiac');
             }
             
-            // Position
             if (elements.positionSelect.value === 'random') {
                 const gameArea = document.querySelector('.game-area');
                 const maxX = gameArea.offsetWidth - 100;
@@ -908,7 +746,6 @@
                 elements.stimulusDisplay.style.top = Math.random() * maxY + 50 + 'px';
             }
             
-            // Check for match
             currentIsMatch = false;
             responseGiven = false;
             
@@ -918,10 +755,8 @@
                 }
             }
             
-            // Update progress
             elements.progressEl.textContent = `${currentIndex + 1}/${totalCount}`;
             
-            // Schedule next
             currentIndex++;
             const speed = parseFloat(elements.speedSlider.value) * 1000;
             
@@ -1025,6 +860,9 @@
             }
             elements.lightDisplay.classList.remove('active');
         }
+
+        // Initialize the app
+        initializeEventListeners();
     </script>
 </body>
 </html>
