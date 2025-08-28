@@ -81,6 +81,9 @@
         .logo {
             height: 50px;
             width: auto;
+            background: white;
+            padding: 5px;
+            border-radius: 8px;
         }
 
         .warning {
@@ -287,11 +290,53 @@
             transition: opacity 0.3s ease;
             z-index: 1000;
             pointer-events: none;
+            display: block;
+            text-align: center;
+            line-height: 1;
+        }
+
+        .splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
             display: flex;
-            align-items: center;
+            flex-direction: column;
             justify-content: center;
-            width: 200px;
-            height: 200px;
+            align-items: center;
+            z-index: 2000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+
+        .splash-screen.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .splash-logo {
+            width: 150px;
+            height: 150px;
+            margin-bottom: 30px;
+        }
+
+        .splash-title {
+            font-size: 1.8rem;
+            color: #333;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .splash-subtitle {
+            font-size: 2.2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: bold;
         }
 
         .countdown.show {
@@ -471,6 +516,13 @@
         
         <div class="countdown" id="countdown"></div>
         <div class="feedback" id="feedback"></div>
+        
+        <!-- スプラッシュスクリーン -->
+        <div class="splash-screen" id="splashScreen">
+            <img src="FNT512.png" alt="Logo" class="splash-logo">
+            <div class="splash-title">Functional Neuro Training</div>
+            <div class="splash-subtitle">40Hz n-back</div>
+        </div>
     </div>
 
     <script>
@@ -531,7 +583,8 @@
             accuracyEl: document.getElementById('accuracy'),
             countdownEl: document.getElementById('countdown'),
             feedbackEl: document.getElementById('feedback'),
-            fullscreenBtn: document.getElementById('fullscreenBtn')
+            fullscreenBtn: document.getElementById('fullscreenBtn'),
+            splashScreen: document.getElementById('splashScreen')
         };
 
         // Initialize event listeners
@@ -678,25 +731,32 @@
         async function startCountdown() {
             return new Promise((resolve) => {
                 let count = 3;
-                elements.countdownEl.style.display = 'flex';
+                
+                // カウントダウン要素の初期化
+                elements.countdownEl.style.display = 'block';
+                elements.countdownEl.style.opacity = '1';
                 elements.countdownEl.classList.add('show');
+                elements.countdownEl.textContent = String(count);
+                elements.countdownEl.innerHTML = String(count);
                 
-                // 最初の数字を表示
-                elements.countdownEl.textContent = count;
+                // 最初のビープ音
+                createBeep(440, 0.2);
                 
-                const interval = setInterval(async () => {
-                    const freq = count === 3 ? 440 : count === 2 ? 523 : count === 1 ? 659 : 784;
-                    await createBeep(freq, 0.2);
-                    
+                const interval = setInterval(() => {
                     count--;
                     
                     if (count > 0) {
-                        elements.countdownEl.textContent = count;
-                    } else if (count === 0) {
-                        elements.countdownEl.textContent = '';
+                        elements.countdownEl.textContent = String(count);
+                        elements.countdownEl.innerHTML = String(count);
+                        const freq = count === 2 ? 523 : count === 1 ? 659 : 784;
+                        createBeep(freq, 0.2);
+                    } else {
                         clearInterval(interval);
                         elements.countdownEl.classList.remove('show');
                         elements.countdownEl.style.display = 'none';
+                        elements.countdownEl.style.opacity = '0';
+                        elements.countdownEl.textContent = '';
+                        createBeep(784, 0.2);
                         resolve();
                     }
                 }, 1000);
@@ -707,6 +767,11 @@
             if (isPlaying) return;
             
             try {
+                // スプラッシュスクリーンを表示
+                elements.splashScreen.classList.add('show');
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                elements.splashScreen.classList.remove('show');
+                
                 if (!audioContext) {
                     audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 }
