@@ -3,12 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <!-- PWA設定 -->
+    <meta name="application-name" content="40Hz n-back">
+    <meta name="apple-mobile-web-app-title" content="40Hz n-back">
+    <link rel="icon" type="image/png" href="FNT_color2.png">
+    <link rel="apple-touch-icon" href="FNT_color2.png">
+    <link rel="shortcut icon" href="FNT_color2.png">
+    
+    <!-- アプリアイコン各サイズ -->
+    <link rel="apple-touch-icon" sizes="57x57" href="FNT_color2.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="FNT_color2.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="FNT_color2.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="FNT_color2.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="FNT_color2.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="FNT_color2.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="FNT_color2.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="FNT_color2.png">
+    
+    <!-- Android用 -->
+    <link rel="icon" type="image/png" sizes="192x192" href="FNT_color2.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="FNT_color2.png">
+    
+    <!-- テーマカラー -->
+    <meta name="theme-color" content="#667eea">
+    
     <title>40Hz n-back認知トレーニング</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         body {
@@ -17,6 +48,8 @@
             color: #ffffff;
             min-height: 100vh;
             padding: 20px;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
             overflow-x: hidden;
             position: relative;
             width: 100%;
@@ -183,13 +216,34 @@
             color: white;
         }
 
+        .fullscreen-btn {
+            background: #444;
+            color: white;
+        }
+
+        .fullscreen-btn.active {
+            background: #667eea;
+        }
+
         .mute-btn.active {
             background: #e74c3c;
         }
 
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+        /* Fullscreen styles */
+        body:fullscreen {
+            padding-top: 40px;
+        }
+        
+        body:-webkit-full-screen {
+            padding-top: 40px;
+        }
+        
+        body:-moz-full-screen {
+            padding-top: 40px;
+        }
+        
+        body:-ms-fullscreen {
+            padding-top: 40px;
         }
 
         .stats {
@@ -239,7 +293,7 @@
 
         .feedback {
             position: fixed;
-            top: 30%;
+            top: 20%;
             left: 50%;
             transform: translate(-50%, -50%);
             padding: 20px 40px;
@@ -365,6 +419,7 @@
             <button class="stop-btn" id="stopBtn" disabled>停止</button>
             <button class="match-btn" id="matchBtn" disabled>マッチ！</button>
             <button class="mute-btn" id="muteBtn">音光OFF</button>
+            <button class="fullscreen-btn" id="fullscreenBtn">全画面</button>
         </div>
         
         <div class="stats">
@@ -443,7 +498,8 @@
             scoreEl: document.getElementById('score'),
             accuracyEl: document.getElementById('accuracy'),
             countdownEl: document.getElementById('countdown'),
-            feedbackEl: document.getElementById('feedback')
+            feedbackEl: document.getElementById('feedback'),
+            fullscreenBtn: document.getElementById('fullscreenBtn')
         };
 
         // Initialize event listeners
@@ -452,6 +508,7 @@
             elements.stopBtn.addEventListener('click', stop);
             elements.matchBtn.addEventListener('click', handleMatchResponse);
             elements.muteBtn.addEventListener('click', toggleMute);
+            elements.fullscreenBtn.addEventListener('click', toggleFullscreen);
             
             elements.nLevelSelect.addEventListener('change', (e) => {
                 nLevel = parseInt(e.target.value);
@@ -860,6 +917,74 @@
             }
             elements.lightDisplay.classList.remove('active');
         }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement && 
+                !document.webkitFullscreenElement && 
+                !document.mozFullScreenElement &&
+                !document.msFullscreenElement) {
+                // Enter fullscreen
+                if (document.documentElement.requestFullscreen) {
+                    document.documentElement.requestFullscreen();
+                } else if (document.documentElement.webkitRequestFullscreen) {
+                    document.documentElement.webkitRequestFullscreen();
+                } else if (document.documentElement.mozRequestFullScreen) {
+                    document.documentElement.mozRequestFullScreen();
+                } else if (document.documentElement.msRequestFullscreen) {
+                    document.documentElement.msRequestFullscreen();
+                }
+                elements.fullscreenBtn.textContent = '通常表示';
+                elements.fullscreenBtn.classList.add('active');
+            } else {
+                // Exit fullscreen
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.mozCancelFullScreen) {
+                    document.mozCancelFullScreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                }
+                elements.fullscreenBtn.textContent = '全画面';
+                elements.fullscreenBtn.classList.remove('active');
+            }
+        }
+
+        // Fullscreen change event listeners
+        document.addEventListener('fullscreenchange', updateFullscreenButton);
+        document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
+        document.addEventListener('mozfullscreenchange', updateFullscreenButton);
+        document.addEventListener('MSFullscreenChange', updateFullscreenButton);
+
+        function updateFullscreenButton() {
+            if (!document.fullscreenElement && 
+                !document.webkitFullscreenElement && 
+                !document.mozFullScreenElement &&
+                !document.msFullscreenElement) {
+                elements.fullscreenBtn.textContent = '全画面';
+                elements.fullscreenBtn.classList.remove('active');
+            } else {
+                elements.fullscreenBtn.textContent = '通常表示';
+                elements.fullscreenBtn.classList.add('active');
+            }
+        }
+
+        // Hide address bar on mobile
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                window.scrollTo(0, 1);
+            }, 100);
+        });
+
+        // Keep address bar hidden
+        window.addEventListener('scroll', () => {
+            if (window.scrollY < 1) {
+                setTimeout(() => {
+                    window.scrollTo(0, 1);
+                }, 0);
+            }
+        });
 
         // Initialize the app
         initializeEventListeners();
