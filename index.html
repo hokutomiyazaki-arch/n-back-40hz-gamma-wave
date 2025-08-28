@@ -53,8 +53,11 @@
 
         .container {
             max-width: 800px;
+            width: 100%;
             margin: 0 auto;
             text-align: center;
+            overflow: hidden;
+            position: relative;
         }
 
         h1 {
@@ -92,10 +95,12 @@
             position: relative;
             width: 400px;
             height: 400px;
+            max-width: calc(100vw - 40px);
             margin: 20px auto;
             background: rgba(255, 255, 255, 0.02);
             border-radius: 20px;
             border: 1px solid rgba(255, 255, 255, 0.1);
+            overflow: hidden;
         }
 
         .light-display {
@@ -126,6 +131,7 @@
             color: white;
             text-shadow: 0 0 30px rgba(255, 255, 255, 0.8);
             z-index: 10;
+            max-width: 90%;
         }
 
         .stimulus-display.zodiac {
@@ -317,6 +323,17 @@
         }
 
         @media (max-width: 600px) {
+            html, body {
+                overflow-x: hidden !important;
+                position: relative !important;
+            }
+            
+            .container {
+                padding: 0 10px;
+                width: 100%;
+                overflow-x: hidden !important;
+            }
+            
             .game-area {
                 width: 90vw;
                 max-width: 350px;
@@ -345,13 +362,27 @@
             .settings {
                 grid-template-columns: 1fr;
             }
+            
+            .controls {
+                padding: 0 10px;
+            }
+            
+            button {
+                font-size: 0.9rem;
+                padding: 10px 20px;
+            }
+            
+            .match-btn {
+                font-size: 1.2rem;
+                padding: 15px 30px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <img src="FNT_color2.png" alt="Logo" class="logo">
+            <img src="FNT512.png" alt="Logo" class="logo">
             <h1>40Hz n-back認知トレーニング</h1>
         </div>
         
@@ -793,10 +824,16 @@
             
             if (elements.positionSelect.value === 'random') {
                 const gameArea = document.querySelector('.game-area');
-                const maxX = gameArea.offsetWidth - 100;
-                const maxY = gameArea.offsetHeight - 100;
-                elements.stimulusDisplay.style.left = Math.random() * maxX + 50 + 'px';
-                elements.stimulusDisplay.style.top = Math.random() * maxY + 50 + 'px';
+                const rect = gameArea.getBoundingClientRect();
+                const maxX = rect.width - 120;
+                const maxY = rect.height - 120;
+                const x = Math.random() * maxX + 60;
+                const y = Math.random() * maxY + 60;
+                elements.stimulusDisplay.style.left = x + 'px';
+                elements.stimulusDisplay.style.top = y + 'px';
+            } else {
+                elements.stimulusDisplay.style.left = '50%';
+                elements.stimulusDisplay.style.top = '50%';
             }
             
             currentIsMatch = false;
@@ -979,6 +1016,36 @@
                 setTimeout(() => {
                     window.scrollTo(0, 1);
                 }, 0);
+            }
+        });
+
+        // Prevent horizontal scroll on touch devices
+        let touchStartX = 0;
+        let touchEndX = 0;
+        
+        document.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+        }, { passive: true });
+        
+        document.addEventListener('touchmove', (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            const diffX = Math.abs(touchStartX - touchEndX);
+            
+            // If horizontal movement is detected, prevent default
+            if (diffX > 10) {
+                const scrollLeft = document.documentElement.scrollLeft || document.body.scrollLeft;
+                if (scrollLeft > 0) {
+                    e.preventDefault();
+                    document.documentElement.scrollLeft = 0;
+                    document.body.scrollLeft = 0;
+                }
+            }
+        }, { passive: false });
+
+        // Force viewport to stay at left edge
+        window.addEventListener('scroll', () => {
+            if (window.scrollX > 0) {
+                window.scrollTo(0, window.scrollY);
             }
         });
 
