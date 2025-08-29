@@ -281,18 +281,24 @@
             position: fixed;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 8rem;
+            width: 300px;
+            height: 300px;
+            margin-top: -150px;
+            margin-left: -150px;
+            font-size: 120px;
             font-weight: bold;
             color: white;
             text-shadow: 0 0 50px rgba(255, 255, 255, 0.8);
             opacity: 0;
-            transition: opacity 0.3s ease;
             z-index: 1000;
             pointer-events: none;
-            display: block;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             text-align: center;
-            line-height: 1;
+            line-height: 300px;
+            -webkit-user-select: none;
+            user-select: none;
         }
 
         .splash-screen {
@@ -732,31 +738,32 @@
             return new Promise((resolve) => {
                 let count = 3;
                 
-                // カウントダウン要素の初期化
-                elements.countdownEl.style.display = 'block';
-                elements.countdownEl.style.opacity = '1';
-                elements.countdownEl.classList.add('show');
-                elements.countdownEl.textContent = String(count);
-                elements.countdownEl.innerHTML = String(count);
+                // カウントダウン要素を完全にリセット
+                const countdownEl = document.getElementById('countdown');
+                countdownEl.innerHTML = '';
+                countdownEl.style.cssText = 'display: flex !important; opacity: 1 !important; position: fixed; top: 50%; left: 50%; width: 300px; height: 300px; margin-top: -150px; margin-left: -150px; font-size: 120px; font-weight: bold; color: white; text-shadow: 0 0 50px rgba(255, 255, 255, 0.8); z-index: 1000; align-items: center; justify-content: center; text-align: center;';
                 
-                // 最初のビープ音
+                // 数字を表示する関数
+                const showNumber = (num) => {
+                    countdownEl.innerHTML = '<span style="display: block; width: 100%; text-align: center;">' + num + '</span>';
+                };
+                
+                // 最初の数字を表示
+                showNumber(count);
                 createBeep(440, 0.2);
                 
                 const interval = setInterval(() => {
                     count--;
                     
                     if (count > 0) {
-                        elements.countdownEl.textContent = String(count);
-                        elements.countdownEl.innerHTML = String(count);
-                        const freq = count === 2 ? 523 : count === 1 ? 659 : 784;
+                        showNumber(count);
+                        const freq = count === 2 ? 523 : 659;
                         createBeep(freq, 0.2);
                     } else {
                         clearInterval(interval);
-                        elements.countdownEl.classList.remove('show');
-                        elements.countdownEl.style.display = 'none';
-                        elements.countdownEl.style.opacity = '0';
-                        elements.countdownEl.textContent = '';
                         createBeep(784, 0.2);
+                        countdownEl.style.cssText = 'display: none !important;';
+                        countdownEl.innerHTML = '';
                         resolve();
                     }
                 }, 1000);
