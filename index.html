@@ -325,8 +325,174 @@
             padding: 5px;
         }
 
+        /* タブナビゲーション */
+        .tab-navigation {
+            display: flex;
+            background: rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 15px;
+            background: none;
+            border: none;
+            border-radius: 0;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .tab-button.active {
+            color: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-weight: 600;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 20px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
         .menu-content {
             padding: 20px;
+        }
+
+        /* ガイドセクション専用スタイル */
+        .guide-section {
+            margin-bottom: 25px;
+        }
+
+        .guide-section h3 {
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+            padding: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .guide-section .icon {
+            font-size: 1.3rem;
+        }
+
+        .guide-section p {
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.85);
+            margin-bottom: 10px;
+        }
+
+        .example-box {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+        }
+
+        .brainwave-list {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0;
+        }
+
+        .brainwave-list li {
+            padding: 8px;
+            margin: 5px 0;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .mode-card {
+            background: rgba(255, 255, 255, 0.08);
+            padding: 12px;
+            border-radius: 10px;
+            margin: 10px 0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .mode-card h4 {
+            font-size: 1rem;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .mode-card p {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .tips-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .tips-list li {
+            padding: 8px;
+            margin: 5px 0;
+            position: relative;
+            padding-left: 25px;
+            font-size: 0.9rem;
+        }
+
+        .tips-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 8px;
+            color: #2ecc71;
+            font-weight: bold;
+        }
+
+        .warning-box {
+            background: rgba(231, 76, 60, 0.1);
+            border: 1px solid rgba(231, 76, 60, 0.3);
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .warning-box p {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.85rem;
+        }
+
+        .effect-timeline {
+            margin: 10px 0;
+        }
+
+        .effect-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px;
+            margin: 8px 0;
+            border-left: 3px solid #667eea;
+            border-radius: 5px;
+        }
+
+        .effect-item h5 {
+            font-size: 0.95rem;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .effect-item p {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.75);
         }
 
         .setting-group {
@@ -585,10 +751,18 @@
         <!-- サイドメニュー -->
         <div class="side-menu" id="sideMenu">
             <div class="menu-header">
-                <h2 class="menu-title">設定</h2>
+                <h2 class="menu-title">メニュー</h2>
                 <button class="close-menu" id="closeMenu">×</button>
             </div>
-            <div class="menu-content">
+            
+            <!-- タブナビゲーション -->
+            <div class="tab-navigation">
+                <button class="tab-button active" data-tab="settings">設定</button>
+                <button class="tab-button" data-tab="guide">ガイド</button>
+            </div>
+            
+            <!-- 設定タブ -->
+            <div class="tab-content active" id="settingsTab">
                 <div class="setting-group">
                     <label>n-back レベル</label>
                     <select id="nLevel">
@@ -631,6 +805,149 @@
                 <div class="setting-group">
                     <label>音量: <span id="volumeValue">30</span>%</label>
                     <input type="range" id="volume" min="0" max="100" value="30">
+                </div>
+            </div>
+            
+            <!-- ガイドタブ -->
+            <div class="tab-content" id="guideTab">
+                <!-- n-backテストとは -->
+                <div class="guide-section">
+                    <h3><span class="icon">📚</span> n-backテストとは？</h3>
+                    <p>「n個前」の情報を覚えているかをテストする記憶力ゲームです。</p>
+                    
+                    <div class="example-box">
+                        <strong>2-backの例:</strong><br>
+                        1回目: 「3」→ 覚える<br>
+                        2回目: 「7」→ 覚える<br>
+                        3回目: 「3」→ 1回目と同じ！マッチ！<br>
+                        4回目: 「5」→ 2回目と違う → スルー
+                    </div>
+                    
+                    <p><strong>認知機能評価の目安:</strong></p>
+                    <ul class="tips-list">
+                        <li>2-back: 平均的な成人レベル</li>
+                        <li>3-back: 高い認知機能</li>
+                        <li>4-back: 非常に優れた認知機能</li>
+                    </ul>
+                </div>
+
+                <!-- 40Hzガンマ波とは -->
+                <div class="guide-section">
+                    <h3><span class="icon">💡</span> 40Hzガンマ波とは？</h3>
+                    <p>脳波の中で最も速い振動で、高度な認知活動時に発生します。</p>
+                    
+                    <ul class="brainwave-list">
+                        <li>デルタ波 (1-4Hz) <span>😴 深い睡眠</span></li>
+                        <li>シータ波 (4-8Hz) <span>🧘 瞑想</span></li>
+                        <li>アルファ波 (8-13Hz) <span>😌 リラックス</span></li>
+                        <li>ベータ波 (13-30Hz) <span>💪 集中</span></li>
+                        <li style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.1));">
+                            ガンマ波 (30-100Hz) <span>🧠✨ 高度認知</span>
+                        </li>
+                    </ul>
+                    
+                    <p><strong>40Hzの特別な効果:</strong></p>
+                    <ul class="tips-list">
+                        <li>脳の異なる領域を同期させる</li>
+                        <li>記憶の形成と想起を促進</li>
+                        <li>MIT研究で認知症予防効果を発見</li>
+                        <li>脳の老廃物クリアランス促進</li>
+                    </ul>
+                </div>
+
+                <!-- 実験してみよう -->
+                <div class="guide-section">
+                    <h3><span class="icon">🔬</span> 実験してみよう！</h3>
+                    <p>4つのモードで最高スコアを見つけよう！</p>
+                    
+                    <div class="mode-card">
+                        <h4>モード1️⃣ n-backのみ</h4>
+                        <p>音光OFFで純粋な記憶力テスト。基準スコアを記録。</p>
+                    </div>
+                    
+                    <div class="mode-card">
+                        <h4>モード2️⃣ 光 + n-back</h4>
+                        <p>40Hz点滅光で視覚的に脳を刺激。</p>
+                    </div>
+                    
+                    <div class="mode-card">
+                        <h4>モード3️⃣ 音 + n-back</h4>
+                        <p>40Hz音波で聴覚的に脳を刺激。</p>
+                    </div>
+                    
+                    <div class="mode-card">
+                        <h4>モード4️⃣ フルモード</h4>
+                        <p>全刺激同時使用で最大の脳活性化！</p>
+                    </div>
+                </div>
+
+                <!-- 使い方ガイド -->
+                <div class="guide-section">
+                    <h3><span class="icon">🎮</span> 使い方</h3>
+                    
+                    <p><strong>基本操作:</strong></p>
+                    <ul class="tips-list">
+                        <li>「開始」でゲームスタート</li>
+                        <li>n個前と同じなら「マッチ！」</li>
+                        <li>スペースキーでも反応OK</li>
+                        <li>正解率70%以上を目指そう</li>
+                    </ul>
+                    
+                    <p><strong>レベル別のコツ:</strong></p>
+                    <div class="effect-timeline">
+                        <div class="effect-item">
+                            <h5>初心者 (2-back)</h5>
+                            <p>数字モード、1日10分から始める</p>
+                        </div>
+                        <div class="effect-item">
+                            <h5>中級者 (3-back)</h5>
+                            <p>干支モード、ランダム位置に挑戦</p>
+                        </div>
+                        <div class="effect-item">
+                            <h5>上級者 (4-back)</h5>
+                            <p>速度1.5秒、パーフェクトを狙う</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 期待できる効果 -->
+                <div class="guide-section">
+                    <h3><span class="icon">🏆</span> 期待できる効果</h3>
+                    
+                    <div class="effect-timeline">
+                        <div class="effect-item">
+                            <h5>1-2週間</h5>
+                            <p>集中力向上、反応速度改善</p>
+                        </div>
+                        <div class="effect-item">
+                            <h5>3-4週間</h5>
+                            <p>記憶力向上、マルチタスク能力改善</p>
+                        </div>
+                        <div class="effect-item">
+                            <h5>2ヶ月以上</h5>
+                            <p>全般的認知機能向上、学習効率改善</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 注意事項 -->
+                <div class="guide-section">
+                    <h3><span class="icon">⚠️</span> 注意事項</h3>
+                    
+                    <div class="warning-box">
+                        <p>• 光過敏性の方は光刺激を避けてください</p>
+                        <p>• 疲れたら無理せず休憩を</p>
+                        <p>• 頭痛・めまいを感じたら中止</p>
+                        <p>• 就寝前2時間は避ける（覚醒効果）</p>
+                    </div>
+                </div>
+
+                <!-- フッター情報 -->
+                <div class="guide-section" style="text-align: center; margin-top: 30px;">
+                    <p style="font-size: 0.8rem; color: rgba(255, 255, 255, 0.5);">
+                        Functional Neuro Training (FNT)<br>
+                        科学的根拠に基づく認知トレーニング
+                    </p>
                 </div>
             </div>
         </div>
@@ -753,6 +1070,30 @@
             feedbackEl: document.getElementById('feedback'),
             splashScreen: document.getElementById('splashScreen')
         };
+
+        // タブ切り替え機能を追加
+        function initializeTabs() {
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const targetTab = button.getAttribute('data-tab');
+                    
+                    // すべてのタブボタンとコンテンツから active クラスを削除
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                    tabContents.forEach(content => content.classList.remove('active'));
+                    
+                    // クリックされたボタンと対応するコンテンツに active クラスを追加
+                    button.classList.add('active');
+                    if (targetTab === 'settings') {
+                        document.getElementById('settingsTab').classList.add('active');
+                    } else if (targetTab === 'guide') {
+                        document.getElementById('guideTab').classList.add('active');
+                    }
+                });
+            });
+        }
 
         // メニュー制御
         function openMenu() {
@@ -1204,6 +1545,7 @@
 
         // 初期化
         initializeEventListeners();
+        initializeTabs(); // タブ機能を初期化
         
         // アプリ起動時にスプラッシュスクリーンを表示
         window.addEventListener('load', () => {
