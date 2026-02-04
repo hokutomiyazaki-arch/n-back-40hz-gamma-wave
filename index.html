@@ -150,16 +150,14 @@
             border-radius: 50%;
             background: radial-gradient(circle, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.05) 100%);
             box-shadow: 0 0 100px rgba(102, 126, 234, 0.2);
-            transition: all 0.025s ease;
             position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
-        }
-
-        .light-display.active {
-            background: radial-gradient(circle, rgba(102, 126, 234, 0.8) 0%, rgba(118, 75, 162, 0.4) 100%);
-            box-shadow: 0 0 150px rgba(102, 126, 234, 0.6), 0 0 300px rgba(102, 126, 234, 0.3);
+            /* iOS用：will-changeでGPUアクセラレーション有効化 */
+            will-change: background, box-shadow;
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
         }
 
         .stimulus-display {
@@ -1010,8 +1008,10 @@
         // ゲーム変数
         let audioContext = null;
         let oscillator = null;
+        let modulatorOsc = null;  // 40Hz変調用オシレーター
         let gainNode = null;
-        let lightInterval = null;
+        let modulatorGain = null; // 変調用ゲインノード
+        let lightAnimationId = null;  // requestAnimationFrame用に変更
         let gameInterval = null;
         let isPlaying = false;
         let sequence = [];
@@ -1026,6 +1026,24 @@
         let maxScore = 20;
         let stimulusType = 'numbers';
         let isMuted = false;
+
+        // 40Hz フリッカー用の状態変数
+        let lightFlashState = {
+            lastToggle: 0,
+            isOn: false
+        };
+
+        // 40Hz用のスタイル定義（事前計算でパフォーマンス向上）
+        const lightStyles = {
+            on: {
+                background: 'radial-gradient(circle, rgba(102, 126, 234, 0.8) 0%, rgba(118, 75, 162, 0.4) 100%)',
+                boxShadow: '0 0 150px rgba(102, 126, 234, 0.6), 0 0 300px rgba(102, 126, 234, 0.3)'
+            },
+            off: {
+                background: 'radial-gradient(circle, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.05) 100%)',
+                boxShadow: '0 0 100px rgba(102, 126, 234, 0.2)'
+            }
+        };
 
         // 干支データ
         const zodiacAnimals = [
@@ -1181,8 +1199,10 @@
         }
 
         function updateVolume() {
-            if (gainNode && !isMuted) {
+            if (gainNode && !isMuted && audioContext) {
                 const volume = elements.volumeSlider.value / 100;
+                // 振幅変調中でもベース音量を調整
+                gainNode.gain.cancelScheduledValues(audioContext.currentTime);
                 gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
             }
         }
@@ -1193,37 +1213,171 @@
             elements.muteBtn.classList.toggle('active', isMuted);
             
             if (isMuted) {
-                if (oscillator) {
-                    oscillator.stop();
-                    oscillator.disconnect();
-                    oscillator = null;
-                }
-                if (gainNode) {
-                    gainNode.disconnect();
-                    gainNode = null;
-                }
+                stop40HzAudio();
                 stopLightFlashing();
             } else if (isPlaying) {
-                try {
-                    oscillator = audioContext.createOscillator();
-                    gainNode = audioContext.createGain();
-                    
-                    oscillator.type = 'sine';
-                    oscillator.frequency.setValueAtTime(40, audioContext.currentTime);
-                    
-                    const volume = elements.volumeSlider.value / 100;
-                    gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
-                    
-                    oscillator.connect(gainNode);
-                    gainNode.connect(audioContext.destination);
-                    oscillator.start();
-                    
-                    startLightFlashing();
-                } catch (error) {
-                    console.error('Error restarting 40Hz:', error);
-                }
+                start40HzAudio();
+                startLightFlashing();
             }
         }
+
+        // ====== iOS対応 40Hz 振幅変調音声 ======
+        // 聞こえる周波数を40Hzで変調することで、スピーカーでも40Hzリズムが聞こえる
+        function start40HzAudio() {
+            try {
+                // キャリア周波数（聞こえる音）: 200Hz
+                oscillator = audioContext.createOscillator();
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
+                
+                // 変調器（40Hz LFO）
+                modulatorOsc = audioContext.createOscillator();
+                modulatorOsc.type = 'sine';
+                modulatorOsc.frequency.setValueAtTime(40, audioContext.currentTime);
+                
+                // LFOのゲイン（変調深度）- 出力を±0.5にする
+                modulatorGain = audioContext.createGain();
+                modulatorGain.gain.setValueAtTime(0.5, audioContext.currentTime);
+                
+                // DCオフセット（0.5を加えて0〜1の範囲にする）
+                const dcOffset = audioContext.createConstantSource();
+                dcOffset.offset.setValueAtTime(0.5, audioContext.currentTime);
+                
+                // 変調されるゲインノード
+                const modulatedGain = audioContext.createGain();
+                modulatedGain.gain.setValueAtTime(0, audioContext.currentTime); // 初期値0
+                
+                // メインのボリューム
+                gainNode = audioContext.createGain();
+                const volume = elements.volumeSlider.value / 100;
+                gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+                
+                // 接続構成:
+                // LFO(40Hz) -> modulatorGain(±0.5) -> modulatedGain.gain
+                // DCオフセット(0.5) -> modulatedGain.gain
+                // 結果: modulatedGain.gain = 0.5 + 0.5*sin(40Hz) = 0〜1で変動
+                
+                modulatorOsc.connect(modulatorGain);
+                modulatorGain.connect(modulatedGain.gain);
+                dcOffset.connect(modulatedGain.gain);
+                
+                // キャリア(200Hz) -> modulatedGain -> gainNode -> 出力
+                oscillator.connect(modulatedGain);
+                modulatedGain.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                // 開始
+                modulatorOsc.start();
+                dcOffset.start();
+                oscillator.start();
+                
+                // dcOffsetへの参照を保持（停止時に必要）
+                oscillator._dcOffset = dcOffset;
+                oscillator._modulatedGain = modulatedGain;
+                
+            } catch (error) {
+                console.error('Error starting 40Hz audio:', error);
+            }
+        }
+
+        function stop40HzAudio() {
+            if (oscillator) {
+                try {
+                    if (oscillator._dcOffset) {
+                        oscillator._dcOffset.stop();
+                        oscillator._dcOffset.disconnect();
+                    }
+                    if (oscillator._modulatedGain) {
+                        oscillator._modulatedGain.disconnect();
+                    }
+                    oscillator.stop();
+                    oscillator.disconnect();
+                } catch (e) {}
+                oscillator = null;
+            }
+            if (modulatorOsc) {
+                try {
+                    modulatorOsc.stop();
+                    modulatorOsc.disconnect();
+                } catch (e) {}
+                modulatorOsc = null;
+            }
+            if (modulatorGain) {
+                try {
+                    modulatorGain.disconnect();
+                } catch (e) {}
+                modulatorGain = null;
+            }
+            if (gainNode) {
+                try {
+                    gainNode.disconnect();
+                } catch (e) {}
+                gainNode = null;
+            }
+        }
+
+        // ====== iOS対応 40Hz フリッカー実装 ======
+        // requestAnimationFrame + performance.now() ベース
+        function startLightFlashing() {
+            // 状態をリセット
+            lightFlashState.lastToggle = performance.now();
+            lightFlashState.isOn = false;
+            
+            const toggleInterval = 1000 / 40 / 2; // 12.5ms (40Hz = 25ms周期、ON/OFFで12.5ms)
+            const lightDisplay = elements.lightDisplay;
+            
+            function flashLoop(timestamp) {
+                // 停止チェック
+                if (!isPlaying || isMuted) {
+                    // スタイルをリセット
+                    lightDisplay.style.background = lightStyles.off.background;
+                    lightDisplay.style.boxShadow = lightStyles.off.boxShadow;
+                    return;
+                }
+                
+                // 経過時間をチェックして切り替え
+                const elapsed = timestamp - lightFlashState.lastToggle;
+                
+                if (elapsed >= toggleInterval) {
+                    lightFlashState.isOn = !lightFlashState.isOn;
+                    
+                    // 直接スタイル変更（classList.toggleより高速）
+                    if (lightFlashState.isOn) {
+                        lightDisplay.style.background = lightStyles.on.background;
+                        lightDisplay.style.boxShadow = lightStyles.on.boxShadow;
+                    } else {
+                        lightDisplay.style.background = lightStyles.off.background;
+                        lightDisplay.style.boxShadow = lightStyles.off.boxShadow;
+                    }
+                    
+                    // 次のトグルタイミングを設定
+                    // ドリフト補正: 余った時間を考慮
+                    lightFlashState.lastToggle = timestamp - (elapsed % toggleInterval);
+                }
+                
+                // 次のフレームをリクエスト
+                lightAnimationId = requestAnimationFrame(flashLoop);
+            }
+            
+            // アニメーション開始
+            lightAnimationId = requestAnimationFrame(flashLoop);
+        }
+
+        function stopLightFlashing() {
+            if (lightAnimationId) {
+                cancelAnimationFrame(lightAnimationId);
+                lightAnimationId = null;
+            }
+            
+            // スタイルをリセット（インラインスタイルをクリア）
+            const lightDisplay = elements.lightDisplay;
+            lightDisplay.style.background = '';
+            lightDisplay.style.boxShadow = '';
+            
+            // 状態もリセット
+            lightFlashState.isOn = false;
+        }
+        // ====== iOS対応 40Hz フリッカー実装 ここまで ======
 
         // ゲーム関数
         function generateSequence() {
@@ -1291,19 +1445,7 @@
                 }
                 
                 if (!isMuted) {
-                    oscillator = audioContext.createOscillator();
-                    gainNode = audioContext.createGain();
-                    
-                    oscillator.type = 'sine';
-                    oscillator.frequency.setValueAtTime(40, audioContext.currentTime);
-                    
-                    const volume = elements.volumeSlider.value / 100;
-                    gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
-                    
-                    oscillator.connect(gainNode);
-                    gainNode.connect(audioContext.destination);
-                    oscillator.start();
-                    
+                    start40HzAudio();
                     startLightFlashing();
                 }
                 
@@ -1330,21 +1472,7 @@
             
             isPlaying = false;
             
-            if (oscillator) {
-                try {
-                    oscillator.stop();
-                    oscillator.disconnect();
-                } catch (e) {}
-                oscillator = null;
-            }
-            
-            if (gainNode) {
-                try {
-                    gainNode.disconnect();
-                } catch (e) {}
-                gainNode = null;
-            }
-            
+            stop40HzAudio();
             stopLightFlashing();
             
             if (gameInterval) {
@@ -1514,24 +1642,6 @@
                 await createBeep(note.freq, note.dur);
                 await new Promise(resolve => setTimeout(resolve, note.dur * 1000));
             }
-        }
-
-        function startLightFlashing() {
-            let lightOn = false;
-            const interval = 1000 / 40 / 2;
-            
-            lightInterval = setInterval(() => {
-                lightOn = !lightOn;
-                elements.lightDisplay.classList.toggle('active', lightOn);
-            }, interval);
-        }
-
-        function stopLightFlashing() {
-            if (lightInterval) {
-                clearInterval(lightInterval);
-                lightInterval = null;
-            }
-            elements.lightDisplay.classList.remove('active');
         }
 
         // Service Worker登録
